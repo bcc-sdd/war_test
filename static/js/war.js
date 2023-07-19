@@ -17,4 +17,21 @@ document.addEventListener("DOMContentLoaded", function () {
         // setInterval(updateAssets, 1000); // Update assets every second
     }
     initMap();
+    var popup = L.popup();
+
+    var circle = L.circle([51.508, -0.11], {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.5,
+        radius: 500000
+    }).addTo(map);
+    function onMapClick(e) {
+        popup
+            .setLatLng(e.latlng)
+            .setContent("You clicked the map at " + e.latlng.toString())
+            .openOn(map);
+    }
+
+    map.on('click', onMapClick);
 })
+
