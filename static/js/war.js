@@ -1,4 +1,4 @@
-var latlngs = [L.latLng(40, 170), L.latLng(-40, 0)];
+var latlngs = [L.latLng(40, -20), L.latLng(-40, 150)];
 
 function sign(x) {
   return typeof x === "number" ? (x ? (x < 0 ? -1 : 1) : 0) : NaN;
