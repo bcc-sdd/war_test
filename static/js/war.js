@@ -325,7 +325,7 @@ function initMap(assetBank) {
 
   function paintTestIcon(map, assetBank) {
     var greenIcon = L.icon({
-      iconUrl: "./static/images/bio.png",
+      iconUrl: "/static/images/bio.png",
       // shadowUrl: 'leaf-shadow.png',
       // shadowSize: [50, 64], // size of the shadow
 
