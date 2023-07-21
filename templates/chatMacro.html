@@ -1,0 +1,33 @@
+{% macro chatMacro() -%}
+<div
+  class="offcanvas-body scrollable-row"
+  id="chat-box"
+  style="flex-grow: 1000"
+>
+  <div>
+    <span style="color: red">Hello</span>
+    <span style="color: green">world</span>
+    <span style="color: blue">with</span>
+    <span style="color: orange">different</span>
+    <span style="color: purple">colors</span>
+  </div>
+</div>
+<div class="input-group chat-row">
+  <input
+    type="text"
+    class="form-control"
+    placeholder="Broadcast message."
+    aria-label="Broadcast message."
+    aria-describedby="basic-addon2"
+    id="chat-input"
+  />
+  <button
+    class="btn btn-outline-secondary"
+    type="button"
+    id="button-addon2"
+    onclick="sendMessage()"
+  >
+    Send
+  </button>
+</div>
+{%- endmacro %}

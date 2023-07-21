@@ -1,0 +1,33 @@
+/* .popUpClass {
+    margin: 1px !important;
+} */
+
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+
+.leaflet-popup-content p {
+  padding: 0 !important;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Adjust the height as per your requirement */
+}
+
+.chat-row {
+  padding: 10px;
+  border: 1px solid #ccc;
+  flex: 1;
+}
+
+.scrollable-row {
+  overflow-y: auto;
+}
+.navbar {
+    background-image: url('/static/images/camo.png'); /* Replace with the path to your background image */
+    background-repeat: repeat-x; /* This will make the image repeat horizontally */
+    background-size: 200px 200px;
+    box-shadow: inset 0px 0px 10px 4px rgba(0, 0, 0, 0.5);
+  }
