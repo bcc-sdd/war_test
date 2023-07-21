@@ -4,13 +4,6 @@
   id="chat-box"
   style="flex-grow: 1000"
 >
-  <div>
-    <span style="color: red">Hello</span>
-    <span style="color: green">world</span>
-    <span style="color: blue">with</span>
-    <span style="color: orange">different</span>
-    <span style="color: purple">colors</span>
-  </div>
 </div>
 <div class="input-group chat-row">
   <input
@@ -31,3 +24,59 @@
   </button>
 </div>
 {%- endmacro %}
+
+{% macro modalMacro() -%}
+<div
+  class="modal fade"
+  id="exampleModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  aria-hidden="true"
+  data-bs-backdrop="static"
+  data-bs-keyboard="false"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <!-- <div class="modal-header">
+          <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div> -->
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <input
+            id="input-team"
+            type="text"
+            class="form-control"
+            placeholder="Enter team number"
+            aria-label="Recipient's username"
+            aria-describedby="basic-addon2"
+          />
+          <span
+            class="input-group-text"
+            id="basic-addon2"
+            data-bs-dismiss="modal"
+            onclick="loginTeam()"
+            >Login</span
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{%- endmacro %}
+
+
+{% macro activityMacro() -%}
+<div
+  class="offcanvas-body scrollable-row"
+  style="flex-grow: 1000"
+>
+  <div>
+    <span style="color: red">Hello</span>
+    <span style="color: green">world</span>
+    <span style="color: blue">with</span>
+    <span style="color: orange">different</span>
+    <span style="color: purple">colors</span>
+  </div>
+</div>
+{%- endmacro %} 

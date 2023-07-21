@@ -27,21 +27,25 @@ app.mount('/', socketapp)
 
 @sio.event
 async def connect(sid, environ, auth=None):
-    available_teams = global_data["available_teams"]
-    if available_teams == 0:
-        global_data["general_sid"] = sid
-    else:
-        team_name = f'team{available_teams}'
-        global_data["teams"].append(team_name)
-        sio.enter_room(sid, team_name)
-        sio.enter_room(global_data["general_sid"], team_name)
-        await sio.save_session(sid, {'team': team_name})
-    data = {"teamNumber": global_data["available_teams"]}
-    await sio.emit('sendTeam', data, room=sid)
-    global_data["available_teams"] += 1
+    print('connected', sid)
 
 @sio.event
 async def sendMessage(sid, data):
-    session = await sio.get_session(sid)
-    await sio.emit('receiveMessage', data, room=session["team"])
+    if global_data["general_sid"] == sid:
+        ...
+    else:
+        session = await sio.get_session(sid)
+        await sio.emit('receiveMessage', data, room=session["team"])
 
+@sio.event
+async def setTeam(sid, team: int):
+    team = int(team)
+    if team == 0:
+        global_data["general_sid"] = sid
+    else:
+        team_name = f'team{team}'
+        print(team_name)
+        sio.enter_room(sid, team_name)
+        sio.enter_room(global_data["general_sid"], team_name)
+        await sio.save_session(sid, {'team': team_name})
+    

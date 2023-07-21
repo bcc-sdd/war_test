@@ -142,8 +142,9 @@
         data-bs-target="#chatLog"
         aria-controls="offcanvasScrolling"
       >
-        Messaging log
+        Logs
       </button>
+      
     </nav>
     <div
       class="offcanvas offcanvas-end chat-container"
@@ -212,11 +213,12 @@
           role="tabpanel"
           aria-labelledby="profile-tab"
         >
-          ...
+          <!-- {{chatMacro.activityMacro()}} -->
         </div>
       </div>
     </div>
     <div id="map" style="height: 100vh"></div>
+    {{chatMacro.modalMacro()}}
   </body>
   <script src="{{ url_for('static', path='/js/leaflet.js') }}"></script>
   <script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
