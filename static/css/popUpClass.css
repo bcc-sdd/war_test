@@ -1,14 +1,5 @@
-/* .popUpClass {
-    margin: 1px !important;
-} */
 
-.leaflet-popup-content {
-  margin: 0 !important;
-}
 
-.leaflet-popup-content p {
-  padding: 0 !important;
-}
 
 .chat-container {
   display: flex;
@@ -31,3 +22,24 @@
     background-size: 200px 200px;
     box-shadow: inset 0px 0px 10px 4px rgba(0, 0, 0, 0.5);
   }
+
+.panel {
+  /* box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px; */
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 5px 15px 0px;
+  border-radius: 12px;
+}
+
+.new-data {
+  animation: fade 2s;
+}
+
+@keyframes fade {
+  0% {
+    background-color: lightgreen;
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+    background-color: none; 
+  }
+}

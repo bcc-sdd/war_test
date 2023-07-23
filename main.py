@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import socketio
+import json
 
 sio = socketio.AsyncServer(
     async_mode='asgi',
@@ -18,16 +19,38 @@ global_data = {
     "teams": []
 }
 
+@app.get("/geojson")
+async def geojson():
+    with open("boundary_lines.geojson", "r") as file1:
+        file1 = json.load(file1)
+        return JSONResponse(content=file1)
+    
+
+@app.get("/geojson_coastline")
+async def geojson_coastline():
+    with open("coastlines.geojson", "r") as file1:
+        file1 = json.load(file1)
+        return JSONResponse(content=file1)    
+
+@app.get("/inputMap", response_class=HTMLResponse)
+async def input_map(request: Request):
+    return templates.TemplateResponse("inputMap.html", {"request": request})
+
 
 @app.get("/home", response_class=HTMLResponse)
-async def read_item(request: Request):
+async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    return templates.TemplateResponse("adminPanel.html", {"request": request})
 
 app.mount('/', socketapp)
 
 @sio.event
 async def connect(sid, environ, auth=None):
     print('connected', sid)
+
 
 @sio.event
 async def sendMessage(sid, data):
@@ -49,3 +72,12 @@ async def setTeam(sid, team: int):
         sio.enter_room(global_data["general_sid"], team_name)
         await sio.save_session(sid, {'team': team_name})
     
+
+@sio.event
+async def commitAction(sid, data):
+    await sio.emit('broadcastAction', data)
+
+
+@sio.event
+async def result(sid, data):
+    await sio.emit('continueAction', data)
