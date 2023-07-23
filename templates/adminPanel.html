@@ -1,0 +1,48 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/popUpClass.css') }}" />
+</head>
+
+<body>
+    <div style="margin:30px;height: 95vh;" class="panel d-flex flex-column bg-white">
+        <h1 class="display-5 text-center" style="padding: 10px;">Administrator Panel</h1>
+        <table class="table align-center" id="main-table">
+            <thead>
+                <tr>
+                    <th scope="col">Id</th>
+                    <th scope="col">Event Details</th>
+                    <th scope="col ">Action</th>
+                </tr>
+            </thead>
+            <tbody class="table-group-divider" id="table-body">
+                <tr>
+                    <th scope="row">1</th>
+                    <td>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam posuere laoreet ligula, id
+                        fringilla ex pretium ac. Mauris eu est et diam facilisis luctus. Morbi in molestie enim. Aenean
+                        ornare eu odio a laoreet. Donec tempor magna erat, id semper elit suscipit sed. Aenean pretium
+                        pretium arcu sed aliquet. Vivamus fermentum ultricies leo vel porta. Proin turpis augue, varius
+                        nec ex vel, accumsan vestibulum risus. Nulla sollicitudin, orci at pellentesque convallis, est
+                        quam fringilla lacus, vitae congue augue ligula non ipsum. Duis venenatis arcu dui, eget
+                        accumsan nunc ultrices vel. Donec dictum ex non ligula iaculis bibendum. Sed purus nulla,
+                        sodales vitae rutrum a, vulputate ac risus. Morbi viverra metus sit amet porttitor pellentesque.
+                        Mauris lobortis ligula vitae dolor auctor vulputate. Donec vitae nulla et purus mattis faucibus
+                        a et tortor.</td>
+                    <td>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-light" onclick="removeData(event)">Accept</button>
+                            <button type="button" class="btn btn-dark">Reject</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- <div class="offcanvas-body scrollable-row" id="chat-box" style="flex-grow: 1000"> -->
+</body>
+<script src="{{ url_for('static', path='/js/bootstrap.js') }}"></script>
+<script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
+<script src="{{ url_for('static', path='/js/socket_admin.js') }}"></script>
+
+</html>

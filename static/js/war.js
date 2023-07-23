@@ -1,46 +1,60 @@
 var map = null;
 var assetBank = [];
-var latlngs = [];
+var input_latlngs = [];
 var existingPoints = 0;
-var routeWeight = 0.2;
+import socket from './socket_actual.js'
+import paintBase from './bases.js'
+import init_map from './init_map.js'
+import {computePaths} from './drawFunctions.js'
+export default assetBank;
 
-class Path {
-  constructor(
-    polyline,
-    done,
-    flightTime,
-    startTime,
-    distance,
-    endTime,
-    start,
-    end
-  ) {
-    this.polyline = polyline;
-    this.done = false;
-    this.flightTime = flightTime;
-    this.startTime = startTime;
-    this.distance = distance;
-    this.endTime = endTime;
-    this.start = start;
-    this.end = end;
-  }
+var assetTypes = {
+
 }
 
+// setInterval(saveData, 1000)
+
+
 class Container {
-  constructor(asset, start, end, intervalId, team = 1, ismoving = true) {
-    this.team = team;
+  constructor(asset, start, end, team = 1, assetType = 'plane') {
+    //computed
+    this.currentPath = null;
     this.asset = asset;
     this.start = start;
     this.end = end;
-    this.intervalId = intervalId;
-    this.paths = [];
     this.routeAssets = [];
     this.radarAsset = null;
     this.attackAsset = null;
-    this.ismoving = ismoving;
-    this.input_latlngs = [];
     this.isReoriented = false;
+    this.currentPathProgress = null;
+    //saved
+    this.team = team;
+    this.paths = [];
     this.totalFlightTime = 0;
+    this.ismoving = false;
+    this.assetType = assetType
+    this.input_latlngs = [];
+  }
+
+  containerSave() {
+    let savedPaths = []
+    this.paths.forEach((path) => {
+      savedPaths.push({ start: path.start, end: path.end })
+    })
+    let saveObj = {
+      currentPath: this.currentPath.id,
+      currentPathProgress: null,
+      team: this.team,
+      paths: savedPaths,
+      ismoving: this.ismoving,
+    }
+    console.log(saveObj)
+    return saveObj
+  }
+
+  addPath(path) {
+    path.id = this.paths.length
+    this.paths.push(path)
   }
 
   paintOnMap() {
@@ -125,14 +139,9 @@ class Container {
   }
 
   collisionCheck(container) {
-    console.log(this.asset.getLatLng().distanceTo(container.asset.getLatLng()), 
-    this.attackAsset.getRadius() + container.attackAsset.getRadius(), (
-      this.asset.getLatLng().distanceTo(container.asset.getLatLng()) <=
-      this.attackAsset.getRadius() + container.attackAsset.getRadius() 
-    ) )
     return (
       this.asset.getLatLng().distanceTo(container.asset.getLatLng()) <=
-      this.attackAsset.getRadius() + container.attackAsset.getRadius() 
+      this.attackAsset.getRadius() + container.attackAsset.getRadius()
     );
   }
 
@@ -145,40 +154,80 @@ class Container {
 
   orientAsset() {
     console.log("REORIENT ME");
-    for (let i = 0; i < 1000; i++) {
-      let currentPath = this.paths[i];
-      if (currentPath.done) {
-        continue;
-      }
-      if (currentPath.length == 2) {
-        this.asset.setRotationAngle(
-          currentPath.start.lng < currentPath.end.lng ? 180 : 0
-        );
-        // this.asset.setStyle({
-        //   rotationAngle: this.start.lng < this.end.lng ? 180 : 0,
-        // });
-        // return this.start.lng < this.end.lng ? 180 : 0;
-      } else {
-        this.asset.setRotationAngle(
-          currentPath.start.lng > currentPath.end.lng ? 180 : 0
-        );
-      }
-      this.isReoriented = true;
-      break;
+    let currentPath = this.currentPath;
+    if (currentPath.length == 2) {
+      this.asset.setRotationAngle(
+        currentPath.start.lng < currentPath.end.lng ? 180 : 0
+      );
+      // this.asset.setStyle({
+      //   rotationAngle: this.start.lng < this.end.lng ? 180 : 0,
+      // });
+      // return this.start.lng < this.end.lng ? 180 : 0;
+    } else {
+      this.asset.setRotationAngle(
+        currentPath.start.lng > currentPath.end.lng ? 180 : 0
+      );
     }
+    this.isReoriented = true;
   }
 
-  init_movement() {
+  end_movement() {
+    this.asset.setLatLng(this.currentPath.end);
+    this.isReoriented = false;
+    for (let i = 0; i < 1000; i++) {
+      let path = this.paths[i]
+      if (path.id == this.currentPath.id) {
+        if (this.paths.length - 1 == i) {
+          this.currentPath = null;
+          this.ismoving = false
+          this.paths.length = 0;
+          return true
+        }
+        else {
+          this.currentPath = this.paths[i + 1]
+          this.currentPath.startFlight()
+          return false
+        }
+      }
+    }
+    //get next path
+  }
+
+  pause_movement() {
+    this.ismoving = false;
+    this.currentPath.paused_time = Date.now() / 1000
+  }
+
+  continue_movement() {
+    let timeElapsed = ((Date.now()) / 1000) - this.currentPath.paused_time
+    this.currentPath.endTime += timeElapsed;
+    console.log(timeElapsed, this.currentPath.endTime)
+    this.ismoving = true;
+  }
+
+  start_movement() {
+    if (this.paths.length == 0) {
+      return
+    }
+    this.currentPath.startFlight();
+    this.ismoving = true;
+  }
+
+  init_movement(current_path_int = null) {
+    if (this.currentPath === null) {
+      this.currentPath = this.paths[0];
+    }
+    else {
+      this.currentPath = this.paths[current_path_int];
+    }
     this.totalFlightTime = 0;
     if (this.paths.length == 0) {
       return;
     }
     let totalFlightTime = 0;
-    var startTime = Date.now() / 1000;
     this.paths.forEach((path) => {
-      start = path.start;
-      end = path.end;
-      path.startTime = startTime * 1000;
+      let start = path.start;
+      let end = path.end;
       //distance is in meters
       //TODO paths
       var distance = start.distanceTo(end) / 1000;
@@ -186,8 +235,6 @@ class Container {
       //TODO hardcoded speed
       var flightTime = distance / 1000;
       path.flightTime = flightTime;
-      path.endTime = startTime + flightTime;
-      startTime = startTime + flightTime;
       totalFlightTime += flightTime;
     });
     this.totalFlightTime = totalFlightTime;
@@ -198,15 +245,81 @@ class Container {
       .addTo(map);
     tooltip.openOn(map);
     this.routeAssets.push(tooltip);
+    this.start_movement()
+    socket.emit('commitAction', `Plane X is moving to coordinates {${this.end.lat.toFixed(2)}, ${this.end.lng.toFixed(2)}}.`)
   }
 }
 
-var testPlane = new Container(
-  (asset = null),
-  (start = null),
-  (end = null),
-  (intervalId = null)
-);
+
+socket.on("continueAction", (data) => {
+  console.log('CONTINUE ACTION')
+  // testPlane.continue_movement()
+})
+
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+  function x(e) {
+    let point = e.latlng.wrap();
+    input_latlngs.push(point)
+  }
+  map = init_map();
+  map.on("click", x)
+  console.log(map)
+
+  paintBase(map)
+  let bankedAssets = store.get("data")
+  bankedAssets.forEach((asset) => {
+    console.log(asset)
+    let team = asset.team
+    let input_latlngs = []
+    let initPoint = asset.paths[0]
+    input_latlngs.push(new L.LatLng(initPoint.start.lat, initPoint.start.lng))
+    asset.paths.forEach((latlngString) => {
+      let newPath = new L.LatLng(latlngString.end.lat, latlngString.end.lng)
+      input_latlngs.push(newPath)
+    })
+    createAssets(input_latlngs, team, asset.currentPath);
+  })
+})
+
+
+setInterval(updateAssets, 100);
+
+function dumpContainers() {
+  let dump = []
+  assetBank.forEach((asset) => {
+    dump.push(asset.containerSave())
+  })
+  store.remove("data")
+  store("data", dump);
+  console.log("DUMPED")
+}
+
+document.addEventListener("keyup", (event) => {
+  if (event.code === "X") {
+    dumpContainers()
+  
+  }
+  else if (event.code === "Enter") {
+    console.log(input_latlngs)
+    createAssets(input_latlngs, 1);
+    input_latlngs.length = 0
+  }
+  else if (event.code === "Space") {
+    let testPlane = assetBank[0]
+    if (testPlane.ismoving) {
+      console.log('PAUSE')
+      testPlane.pause_movement()
+    }
+    else {
+      testPlane.continue_movement()
+    }
+    // simulateArmagedon();
+  }
+})
+
 
 function spawnGoons() {
   for (let i = 0; i < 300; i++) {
@@ -215,13 +328,7 @@ function spawnGoons() {
     var lat = Math.random() * (latBounds[1] - latBounds[0] + 1) + latBounds[0];
     var lng = Math.random() * (lngBounds[1] - lngBounds[0] + 1) + lngBounds[0];
     var latlng = L.latLng(lat, lng);
-    var container = new Container(
-      (asset = null),
-      (start = latlng),
-      (end = null),
-      (intervalId = null),
-      (team = Math.ceil(Math.random() * 5))
-    );
+    var container = new Container(null, latlng, null, null, Math.ceil(Math.random() * 5));
     createAssets(map, assetBank, container);
   }
 }
@@ -230,12 +337,7 @@ function simulateArmagedon() {
   for (let i = 0; i < 300; i++) {
     var latBounds = [-50, 50];
     var lngBounds = [-180, 180];
-    var container = new Container(
-      (asset = null),
-      (start = null),
-      (end = null),
-      (intervalId = null)
-    );
+    var container = new Container(null, null, null, null);
     for (let i = 0; i < 4; i++) {
       var lat =
         Math.random() * (latBounds[1] - latBounds[0] + 1) + latBounds[0];
@@ -248,10 +350,10 @@ function simulateArmagedon() {
   }
 }
 
-function countryToggle(event) {
+function countryToggle(event, country) {
   var truthiness = event.srcElement.checked ? true : false;
   assetBank.forEach((asset) => {
-    if (asset.team == 1 || asset.team == 2 || asset.team == 3) {
+    if (asset.team == country || asset.team == country * 2) {
       asset.set_AssetsOpaque(truthiness);
     }
   });
@@ -265,103 +367,17 @@ document.addEventListener("DOMContentLoaded", function () {
     existingPoints += 1;
   }
   map = initMap(assetBank);
-  spawnGoons();
   map.on("click", onMapClick);
+  // spawnGoons()
 });
 
-document.addEventListener("keyup", (event) => {
-  if (existingPoints < 2) {
-    return;
-  }
-  if (event.code === "Enter") {
-    createAssets(map, assetBank, testPlane);
-    // container.intervalId = setInterval(updateAssets, 100);
-    setInterval(updateAssets, 100);
-  }
-  if (event.code === "Space") {
-    simulateArmagedon();
-  }
-});
 
-function initMap(assetBank) {
-  function init_map(assetBank) {
-    var maxBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
-    var map = L.map("map", {
-      attributionControl: false,
-      minZoom: 2,
-      maxZoom: 6,
-      maxBounds: maxBounds,
-    }).setView([30, 0], 2);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(
-      map
-    );
-    //init lines for IDL and PM
-    var pointA = new L.LatLng(90, 180.0);
-    var pointB = new L.LatLng(-90, 180.0);
-    var pointList = [pointA, pointB];
-    var idl = new L.polyline(pointList, {
-      color: "green",
-      weight: 1,
-      opacity: 0.5,
-      smoothFactor: 1,
-      noWrap: false,
-    });
-    idl.addTo(map);
-    var pointA = new L.LatLng(90, -180.0);
-    var pointB = new L.LatLng(-90, -180.0);
-    var pointList = [pointA, pointB];
-    var idl2 = new L.polyline(pointList, {
-      color: "green",
-      weight: 1,
-      opacity: 0.5,
-      smoothFactor: 1,
-      noWrap: false,
-    });
-    idl2.addTo(map);
-    paintTestIcon(map, assetBank);
-    return map;
-  }
 
-  function paintTestIcon(map, assetBank) {
-    var greenIcon = L.icon({
-      iconUrl: "/static/images/bio.png",
-      // shadowUrl: 'leaf-shadow.png',
-      // shadowSize: [50, 64], // size of the shadow
-
-      iconSize: [60, 60], // size of the icon
-      iconAnchor: [30, 30], // point of the icon which will correspond to marker's location
-      // shadowAnchor: [4, 62],  // the same for the shadow
-      // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
-    });
-    var assetMarker = L.marker([27, 0], { icon: greenIcon, opacity: 1 });
-    var extraAsset = new Container(
-      (asset = assetMarker),
-      (start = null),
-      (end = null),
-      (intervalId = null),
-      (team = 2),
-      (ismoving = false)
-    );
-    extraAsset.add_persistentAssets(map, assetMarker.getLatLng());
-    assetMarker.addTo(map);
-    assetBank.push(extraAsset);
-  }
-  return init_map(assetBank);
-}
-
-function createAssets(map, assetBank, container) {
-  function createAndDraw(map, assetBank, container) {
-    if (container.input_latlngs.length > 0) {
-      container = computePaths(map, container);
-    }
-    assetBank.push(container);
-    container.paintOnMap();
-    //contains check whether has path or not
-    container.init_movement();
-  }
-
-  function computePaths(map, container) {
+function createAssets(lat_lngs_array, team = 1, current_path = null) {
+  let container = new Container(null, null, null, team)
+  container.input_latlngs = lat_lngs_array
+  if (container.input_latlngs.length > 0) {
     var latlngs = container.input_latlngs;
     container.start = latlngs[0];
     for (let i = 0; i < latlngs.length; i++) {
@@ -369,106 +385,39 @@ function createAssets(map, assetBank, container) {
         container.end = latlngs[i];
         break;
       }
-      var paths = paintLines(latlngs[i], latlngs[i + 1]);
-      container.paths.push(...paths);
+      var paths = computePaths(latlngs[i], latlngs[i + 1]);
+      paths.forEach((path) => { container.addPath(path) })
     }
     container.add_routeAssets(map);
-    return container;
+  }
+  assetBank.push(container);
+  container.paintOnMap();
+  //contains check whether has path or not
+  if (container.input_latlngs.length > 0) {
+    container.init_movement(current_path);
   }
 
-  function paintLines(latlngs0, latlngs1) {
-    var new_lat = calculateAntimeridianLat(latlngs0, latlngs1);
-    var isWestward = latlngs0.lng > latlngs1.lng;
-    var new_latlng1 = L.latLng(new_lat, isWestward ? 180 : -180);
-    var new_latlng2 = L.latLng(new_lat, isWestward ? -180 : 180);
-    if (isDrawAntimeridian(latlngs0, new_latlng1, latlngs1, new_latlng2)) {
-      var firstpolyline = new L.Polyline([latlngs0, new_latlng1], {
-        color: "red",
-        weight: routeWeight,
-        smoothFactor: 1,
-        //   noWrap: true,
-      });
-      var secondpolyline = new L.Polyline([latlngs1, new_latlng2], {
-        color: "red",
-        weight: routeWeight,
-        smoothFactor: 1,
-        //   noWrap: true,
-      });
-      var retVal_paths = [
-        new Path(
-          (polyline = firstpolyline),
-          (done = false),
-          (flightTime = null),
-          (startTime = null),
-          (distance = null),
-          (endTime = null),
-          (start = latlngs0),
-          (end = new_latlng1)
-        ),
-        new Path(
-          (polyline = secondpolyline),
-          (done = false),
-          (flightTime = null),
-          (startTime = null),
-          (distance = null),
-          (endTime = null),
-          (start = new_latlng2),
-          (end = latlngs1)
-        ),
-      ];
-      return retVal_paths;
-    } else {
-      var firstpolyline = new L.Polyline([latlngs0, latlngs1], {
-        color: "red",
-        weight: routeWeight,
-        smoothFactor: 1,
-        //   noWrap: true,
-      });
-      retVal_paths = [
-        new Path(
-          (polyline = firstpolyline),
-          (done = false),
-          (flightTime = null),
-          (startTime = null),
-          (distance = null),
-          (endTime = null),
-          (start = latlngs0),
-          (end = latlngs1)
-        ),
-      ];
-      return retVal_paths;
-    }
-  }
-
-  createAndDraw(map, assetBank, container);
 }
 
 function updateAssets() {
   assetBank.forEach((assetContainer) => {
-    var finishedMovingFlag = true;
     var assetMarker = assetContainer.asset;
     if (!assetContainer.ismoving) {
       return;
     }
-    for (path of assetContainer.paths) {
-      // continue along loop until current path is reached
-      if (path.done == true) {
-        console.log("OK");
-        continue;
+    let path = assetContainer.currentPath
+    var currentTime = Date.now() / 1000;
+    var progress = 1 - (path.endTime - currentTime) / path.flightTime;
+    // reached destination
+    if (progress >= 1) {
+      if (assetContainer.end_movement()) {
+        assetContainer.clear_RouteAssets();
       }
-      var currentTime = Date.now() / 1000;
-      var progress = 1 - (path.endTime - currentTime) / path.flightTime;
-      if (progress >= 1) {
-        assetMarker.setLatLng(path.end);
-        assetContainer.isReoriented = false;
-        path.done = true;
-        return;
-      }
+    }
+    else {
       if (!assetContainer.isReoriented) {
         assetContainer.orientAsset();
       }
-      finishedMovingFlag = false;
-      // reached destination
       // console.log(`${progress * 100}%`, progress, path.end.lat, assetContainer.end.lng)
       var newPosition = midpoint(
         path.start.lat,
@@ -479,10 +428,9 @@ function updateAssets() {
       );
       assetContainer.update_persistentAssets(newPosition);
       assetMarker.setLatLng(newPosition);
-      // assetContainer.update_persistentAssets(newPosition)
-
-      break;
     }
+
+    return
     assetBank.forEach((otherAssetContainer) => {
       // if (otherAssetContainer.team == 1) {
       //   return;
@@ -492,43 +440,9 @@ function updateAssets() {
         assetContainer.can_detectContainer(otherAssetContainer)
       );
     });
-    if (finishedMovingFlag) {
-      // assetContainer.ismoving = false
-      clearInterval(assetContainer.intervalId);
-      assetContainer.clear_RouteAssets();
-    }
   });
 }
 
-function sign(x) {
-  return typeof x === "number" ? (x ? (x < 0 ? -1 : 1) : 0) : NaN;
-}
-
-function isCrossMeridian(latLngA, latLngB) {
-  // Returns true if the signs are not the same.
-  return sign(latLngA.lng) * sign(latLngB.lng) < 0;
-}
-
-function isDrawAntimeridian(latLngA1, latLngA2, latLngB1, latLngB2) {
-  return Math.abs(latLngA1.lng - latLngB1.lng) >= 180;
-  var meas1 =
-    (latLngA2.distanceTo(latLngA1) + latLngB2.distanceTo(latLngB1)) / 1000;
-  var meas2 = latLngA1.distanceTo(latLngB1) / 1000;
-  console.log(`ANTIMER ${meas1}, ACROSS${meas2}`);
-  return meas1 < meas2 && isCrossMeridian(latLngA1, latLngB1);
-}
-
-function calculateAntimeridianLat(latLngA, latLngB) {
-  if (latLngA.lat > latLngB.lat) {
-    var temp = latLngA;
-    latLngA = latLngB;
-    latLngB = temp;
-  }
-  var A = 360 - Math.abs(latLngA.lng - latLngB.lng);
-  var B = latLngB.lat - latLngA.lat;
-  var a = Math.abs(180 - Math.abs(latLngA.lng));
-  return latLngA.lat + (B * a) / A;
-}
 
 function midpoint(lat1, long1, lat2, long2, per) {
   return [lat1 + (lat2 - lat1) * per, long1 + (long2 - long1) * per];
