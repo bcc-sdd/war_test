@@ -265,8 +265,8 @@ document.addEventListener("DOMContentLoaded", function () {
     existingPoints += 1;
   }
   map = initMap(assetBank);
+  spawnGoons();
   map.on("click", onMapClick);
-  // spawnGoons()
 });
 
 document.addEventListener("keyup", (event) => {
