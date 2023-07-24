@@ -1,10 +1,8 @@
-
-
-
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Adjust the height as per your requirement */
+  height: 100vh;
+  /* Adjust the height as per your requirement */
 }
 
 .chat-row {
@@ -16,12 +14,18 @@
 .scrollable-row {
   overflow-y: auto;
 }
+
+
+
+
 .navbar {
-    background-image: url('/static/images/camo.png'); /* Replace with the path to your background image */
-    background-repeat: repeat-x; /* This will make the image repeat horizontally */
-    background-size: 200px 200px;
-    box-shadow: inset 0px 0px 10px 4px rgba(0, 0, 0, 0.5);
-  }
+  background-image: url('/static/images/camo.png');
+  /* Replace with the path to your background image */
+  background-repeat: repeat-x;
+  /* This will make the image repeat horizontally */
+  background-size: 200px 200px;
+  box-shadow: inset 0px 0px 10px 4px rgba(0, 0, 0, 0.5);
+}
 
 .panel {
   /* box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px; */
@@ -38,8 +42,17 @@
     background-color: lightgreen;
     opacity: 0.2;
   }
+
   100% {
     opacity: 1;
-    background-color: none; 
+    background-color: none;
   }
+}
+
+.fixed-side-panel {
+  width: 250px;
+  background-color: white;
+  padding: 10px;
+  max-height: 100vh;
+  overflow-x: auto;
 }

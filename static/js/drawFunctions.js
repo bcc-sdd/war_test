@@ -20,8 +20,8 @@ export function computePaths(latlngs0, latlngs1) {
             smoothFactor: 1,
             //   noWrap: true,
         });
-        var retVal_paths = [new Path(firstpolyline, false, null, null, null, null, latlngs0, new_latlng1),
-        new Path(secondpolyline, false, null, null, null, null, new_latlng2, latlngs1)];
+        var retVal_paths = [new Path(firstpolyline, latlngs0, new_latlng1),
+        new Path(secondpolyline, new_latlng2, latlngs1)];
         return retVal_paths;
     } else {
         var firstpolyline = new L.Polyline([latlngs0, latlngs1], {
@@ -30,8 +30,7 @@ export function computePaths(latlngs0, latlngs1) {
             smoothFactor: 1,
             //   noWrap: true,
         });
-        console.log(firstpolyline)
-        retVal_paths = [new Path(firstpolyline, false, null, null, null, null, latlngs0, latlngs1)]
+        retVal_paths = [new Path(firstpolyline, latlngs0, latlngs1)]
         return retVal_paths;
     }
 }

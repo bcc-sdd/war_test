@@ -12,7 +12,15 @@ async function displayCoordsData(e) {
     console.log(e)
     let lat = e.latlng.wrap().lat;
     let lng = e.latlng.wrap().lng;
-    let data = await pullData(lat, lng);
+    let data;
+    try {
+        data = await pullData(lat, lng);
+        data = data.features[0].properties.geonunit;
+    }
+    catch {
+        data = 'Body of Water'
+    }
+    // let data = 'To implement'
     console.log(data)
     // const data = await response2.json();
     // console.log(data)
@@ -46,7 +54,7 @@ async function displayCoordsData(e) {
     let cell3 = row.insertCell();
     cell1.innerHTML = point.lat.toFixed(2);
     cell2.innerHTML = point.lng.toFixed(2);
-    cell3.innerHTML = data.features[0].properties.geonunit;
+    cell3.innerHTML = data;
 }
 
 

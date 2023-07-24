@@ -19,6 +19,11 @@ global_data = {
     "teams": []
 }
 
+
+@app.get("/preview", response_class=HTMLResponse)
+async def preview(request: Request):
+    return templates.TemplateResponse("view.html", {"request": request})
+
 @app.get("/geojson")
 async def geojson():
     with open("boundary_lines.geojson", "r") as file1:

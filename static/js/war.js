@@ -2,7 +2,8 @@ var map = null;
 var assetBank = [];
 var stationaryAssetBank = [];
 var input_latlngs = [];
-var existingPoints = 0;
+var team = null;
+
 import socket from "./socket_actual.js";
 import paintBase from "./bases.js";
 import init_map from "./init_map.js";
@@ -52,7 +53,7 @@ class Base extends MapAsset {
 }
 
 class Container extends MapAsset {
-  constructor(asset, start, end, team = 1, assetType = "plane") {
+  constructor(asset, start, end, team = 1, assetType = "plane", paused_times = null, resume_times = null) {
     super(asset);
     //computed
     this.currentPath = null;
@@ -70,6 +71,11 @@ class Container extends MapAsset {
     this.ismoving = false;
     this.assetType = assetType;
     this.input_latlngs = [];
+    this.startTime = null;
+    this.movementStatus = null;
+    this.done = false;
+    this.paused_times = paused_times ? paused_times : [];
+    this.resume_times = resume_times ? resume_times : [];
   }
 
   containerSave() {
@@ -77,12 +83,18 @@ class Container extends MapAsset {
     this.paths.forEach((path) => {
       savedPaths.push({ start: path.start, end: path.end });
     });
+    console.log(this)
     let saveObj = {
-      currentPath: this.currentPath.id,
+      startTime: this.startTime,
+      currentPath: this.done ? null: this.currentPath.id,
       currentPathProgress: null,
       team: this.team,
       paths: savedPaths,
       ismoving: this.ismoving,
+      start: this.start,
+      end: this.end,
+      pause_times: this.paused_times,
+      resume_times: this.resume_times
     };
     console.log(saveObj);
     return saveObj;
@@ -91,6 +103,23 @@ class Container extends MapAsset {
   addPath(path) {
     path.id = this.paths.length;
     this.paths.push(path);
+  }
+
+  getCurrentCoords() {
+    console.log(this.done)
+    if (this.done === true || this.done === undefined) {
+      return this.end
+    }
+    let path = this.currentPath;
+    var progress = path.getProgress();
+    var newPosition = midpoint(
+      path.start.lat,
+      path.start.lng,
+      path.end.lat,
+      path.end.lng,
+      progress
+    );
+    return newPosition
   }
 
   paintOnMap() {
@@ -104,21 +133,24 @@ class Container extends MapAsset {
       // shadowAnchor: [4, 62],  // the same for the shadow
       // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
     });
-    var assetMarker = L.marker(this.start, {
+    let initCoords = this.getCurrentCoords()
+    var assetMarker = L.marker(initCoords, {
       icon: greenIcon,
       opacity: 1,
       rotationAngle: 0,
     });
     assetMarker.addTo(map);
     this.asset = assetMarker;
-    this.add_persistentAssets(map, this.start);
+    this.add_persistentAssets(map, initCoords);
+
+    this.orientAsset();
   }
 
-  clear_RouteAssets() {
+  clear_RouteAssets(map) {
     this.routeAssets.forEach((asset) => map.removeLayer(asset));
   }
 
-  add_routeAssets(map) {
+  add_routeAssets() {
     this.paths.forEach((path) => {
       this.routeAssets.push(path.polyline);
       path.polyline.addTo(map);
@@ -141,7 +173,14 @@ class Container extends MapAsset {
     this.routeAssets.push(startCircle, endCircle);
   }
 
+  clear_persistentAssets(map) {
+    map.removeLayer(this.radarAsset);
+    map.removeLayer(this.attackAsset);
+  }
+
+
   add_persistentAssets(map, coords) {
+    this.asset.bindPopup(`<p>Team ${this.team}</p><p>Raptor-II</p>`).openPopup();
     var radarAsset = L.circle(coords, {
       color: "green",
       // fillColor: "#212",
@@ -181,8 +220,16 @@ class Container extends MapAsset {
   }
 
   orientAsset() {
-    console.log("REORIENT ME");
+    if (this.currentPath === null) {
+      return
+    }
     let currentPath = this.currentPath;
+    // console.log("REORIENT ME");
+    // if (this.done) {
+    // }
+    // else {
+    //   currentPath = ;
+    // }
     let headingAngle = computeAngle(
       currentPath.start.lat,
       currentPath.start.lng,
@@ -191,32 +238,42 @@ class Container extends MapAsset {
     );
     if (currentPath.length == 2) {
       this.asset.setRotationAngle(
-        currentPath.start.lng < currentPath.end.lng ? 180 : headingAngle
+        currentPath.start.lng < currentPath.end.lng ? 180 : 0
       );
     } else {
       this.asset.setRotationAngle(
-        currentPath.start.lng > currentPath.end.lng
-          ? headingAngle - 180
-          : headingAngle
+        currentPath.start.lng > currentPath.end.lng ? 180 : 0
       );
     }
+    // if (currentPath.length == 2) {
+    //   this.asset.setRotationAngle(
+    //     currentPath.start.lng < currentPath.end.lng ? 180 : headingAngle
+    //   );
+    // } else {
+    //   this.asset.setRotationAngle(
+    //     currentPath.start.lng > currentPath.end.lng
+    //       ? headingAngle - 180
+    //       : headingAngle
+    //   );
+    // }
     this.isReoriented = true;
   }
 
   end_movement() {
     this.asset.setLatLng(this.currentPath.end);
     this.isReoriented = false;
+    this.currentPath.done = true;
     for (let i = 0; i < 1000; i++) {
       let path = this.paths[i];
       if (path.id == this.currentPath.id) {
         if (this.paths.length - 1 == i) {
-          this.currentPath = null;
-          this.ismoving = false;
-          this.paths.length = 0;
+          //completed all waypoints
+          this.completedAllWaypoints()
           return true;
         } else {
           this.currentPath = this.paths[i + 1];
-          this.currentPath.startFlight();
+          let startTime = Date.now() / 1000;
+          this.currentPath.startFlight(startTime);
           return false;
         }
       }
@@ -224,34 +281,88 @@ class Container extends MapAsset {
     //get next path
   }
 
+
   pause_movement() {
     this.ismoving = false;
     this.currentPath.paused_time = Date.now() / 1000;
+    this.paused_times.push(Date.now()/1000)
   }
 
-  continue_movement() {
+  continue_movement() { 
     let timeElapsed = Date.now() / 1000 - this.currentPath.paused_time;
     this.currentPath.endTime += timeElapsed;
     console.log(timeElapsed, this.currentPath.endTime);
     this.ismoving = true;
+    this.resume_times.push(Date.now()/1000);
   }
 
   start_movement() {
-    if (this.paths.length == 0) {
-      return;
+    //start exp
+    let last_pause_index = 0;
+    let last_resume_index = 0;
+    // value to path during pause
+    let pathIncrement;
+    let pauseStatus = false;
+    //end exp
+    let startTime;
+    if (this.startTime === null) {
+      startTime = Date.now() / 1000;
+      this.startTime = startTime;
     }
-    this.currentPath.startFlight();
-    this.ismoving = true;
+    else {
+      startTime = this.startTime
+    }
+    let currentTime = Date.now() / 1000;
+    this.startTime = startTime
+    //start exp
+    for (let i = 0; i < 1000; i++) {
+      var path = this.paths[i];
+      if (path === undefined) {
+        break;
+      }
+      //   pathIncrement = 0
+    //   loop2:
+    //   for (let j = last_pause_index; j < 1000; j++) {
+    //     let pause_time = this.paused_times[j]
+    //     if (pause_time && pause_time >= startTime) {
+    //       console.log("x");
+    //       last_pause_index = j;
+    //       let resume_time = this.resume_times[last_resume_index]
+    //       if (resume_time !== undefined) {
+    //         last_resume_index += 1;
+    //         pathIncrement += resume_time
+    //       }
+    //       else {
+    //         pauseStatus = true
+    //       }
+    //     }
+    //     if (pause_time === undefined) {
+    //       break loop2;
+    //     }
+    //   }
+      // end exp
+      path.startFlight(startTime)
+      if (path.endTime >= currentTime) {
+        this.ismoving = true;
+        this.currentPath = path;
+        this.done = false;
+        return
+      }
+      startTime += path.flightTime
+    }
+    //iterated through all paths
+    this.completedAllWaypoints()
   }
 
-  init_movement(current_path_int = null) {
-    if (this.currentPath === null) {
-      try {
-        this.currentPath = this.paths[0];
-      } catch {}
-    } else {
-      this.currentPath = this.paths[current_path_int];
-    }
+
+  completedAllWaypoints() {
+    this.currentPath = null;
+    this.ismoving = false;
+    this.paths.length = 0;
+    this.done = true;
+  }
+
+  init_movement() {
     this.totalFlightTime = 0;
     if (this.paths.length == 0) {
       return;
@@ -270,7 +381,6 @@ class Container extends MapAsset {
       totalFlightTime += flightTime;
     });
     this.totalFlightTime = totalFlightTime;
-    this.orientAsset();
     let tooltip = L.tooltip()
       .setLatLng(this.end)
       .setContent(`Remain: ${totalFlightTime.toFixed(2)}`)
@@ -278,12 +388,19 @@ class Container extends MapAsset {
     tooltip.openOn(map);
     this.routeAssets.push(tooltip);
     this.start_movement();
-    socket.emit(
-      "commitAction",
-      `Plane X is moving to coordinates {${this.end.lat.toFixed(
-        2
-      )}, ${this.end.lng.toFixed(2)}}.`
-    );
+    if (this.ismoving) {
+      this.add_routeAssets();
+      socket.emit(
+        "commitAction",
+        `Plane X is moving to coordinates {${this.end.lat.toFixed(
+          2
+        )}, ${this.end.lng.toFixed(2)}}.`
+      );
+      if (this.ismoving) {
+
+      }
+    }
+
   }
 }
 
@@ -293,28 +410,40 @@ socket.on("continueAction", (data) => {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
+  function updateCoords(e) {
+    let point = e.latlng.wrap()
+    let ele = document.getElementById("coords-bottom")
+    ele.textContent = `Coordinates: |${point.lat.toFixed(2)},${point.lng.toFixed(2)}|`
+  }
   function x(e) {
     let point = e.latlng.wrap();
     input_latlngs.push(point);
   }
   map = init_map();
+  map.on("mousemove", updateCoords)
   map.on("click", x);
-  console.log(map);
-  let newBase = new Base(paintBase(map), 2);
-  newBase.add_persistentAssets(map);
-  stationaryAssetBank.push(newBase);
+  // let newBase = new Base(paintBase(map), 2);
+  // newBase.add_persistentAssets(map);
+  // stationaryAssetBank.push(newBase);
   let bankedAssets = store.get("data");
   bankedAssets.forEach((asset) => {
-    console.log(asset);
     let team = asset.team;
     let input_latlngs = [];
     let initPoint = asset.paths[0];
-    input_latlngs.push(new L.LatLng(initPoint.start.lat, initPoint.start.lng));
-    asset.paths.forEach((latlngString) => {
-      let newPath = new L.LatLng(latlngString.end.lat, latlngString.end.lng);
-      input_latlngs.push(newPath);
-    });
-    createAssets(input_latlngs, team, asset.currentPath);
+    if (asset.paths.length >= 1) {
+      input_latlngs.push(new L.LatLng(initPoint.start.lat, initPoint.start.lng));
+      asset.paths.forEach((latlngString) => {
+        let newPoint = new L.LatLng(latlngString.end.lat, latlngString.end.lng);
+        input_latlngs.push(newPoint);
+      });
+
+    }
+    let options = {
+      paused_times: asset.paused_times,
+      resume_times: asset.resume_times
+    }
+    console.log(options)
+    createAssets(input_latlngs, team, null, asset.startTime, asset.start, asset.end, options);
   });
 });
 
@@ -332,17 +461,15 @@ function dumpContainers() {
 
 document.addEventListener("keyup", (event) => {
   console.log(event.code);
-  if (event.code === "KeyX") {
-    console.log("DUMPDUMPDUMP");
+  if (event.code === "KeyD") {
     dumpContainers();
   } else if (event.code === "KeyS") {
     spawnGoons();
   } else if (event.code === "Enter") {
-    console.log(input_latlngs);
     createAssets(input_latlngs, 1);
     input_latlngs.length = 0;
   } else if (event.code === "Space") {
-    let testPlane = assetBank[0];
+    let testPlane = assetBank[assetBank.length - 1];
     if (testPlane.ismoving) {
       console.log("PAUSE");
       testPlane.pause_movement();
@@ -387,12 +514,22 @@ function countryToggle(event, country) {
 
 window.countryToggle = countryToggle;
 
-function createAssets(lat_lngs_array, team = 1, current_path = null, stationary_start = null) {
-  let container = new Container(null, null, null, team);
+function createAssets(lat_lngs_array, team = 1, stationary_start = null, starttime = null, start=null, end=null, options) {
+  let container;
+  if (options) {
+    container = new Container(null, null, null, team, null, options.paused_times, options.resume_times);
+  }
+  else {
+    container = new Container(null, null, null, team, null);
+
+  }
+  container.startTime = starttime
   container.input_latlngs = lat_lngs_array;
+  // is moving
   if (container.input_latlngs.length > 0) {
     var latlngs = container.input_latlngs;
     container.start = latlngs[0];
+    container.end = latlngs[latlngs.length-1]
     for (let i = 0; i < latlngs.length; i++) {
       if (i + 1 == latlngs.length) {
         container.end = latlngs[i];
@@ -403,32 +540,37 @@ function createAssets(lat_lngs_array, team = 1, current_path = null, stationary_
         container.addPath(path);
       });
     }
-    container.add_routeAssets(map);
   }
+  // is finished moving
   else {
     container.start = stationary_start
+    container.done = true;
   }
   assetBank.push(container);
-  container.paintOnMap();
   //contains check whether has path or not
   if (container.input_latlngs.length > 0) {
-    container.init_movement(current_path);
+    container.init_movement();
   }
+  if (container.end === null) {
+    container.end = end;
+  }
+  container.paintOnMap();
+  return container
 }
 
 function updateAssets() {
   assetBank.forEach((assetContainer) => {
+
     var assetMarker = assetContainer.asset;
     if (!assetContainer.ismoving) {
       return;
     }
     let path = assetContainer.currentPath;
-    var currentTime = Date.now() / 1000;
-    var progress = 1 - (path.endTime - currentTime) / path.flightTime;
+    var progress = path.getProgress();
     // reached destination
     if (progress >= 1) {
       if (assetContainer.end_movement()) {
-        assetContainer.clear_RouteAssets();
+        assetContainer.clear_RouteAssets(map);
       }
     } else {
       if (!assetContainer.isReoriented) {
@@ -451,7 +593,7 @@ function updateAssets() {
 function visibilityCheck() {
   assetBank.forEach((assetContainer) => {
     stationaryAssetBank.forEach((otherAssetContainer) => {
-      if (otherAssetContainer.team == 1) {
+      if (otherAssetContainer.team == team) {
         return;
       }
       // assetContainer.collisionCheck(otherAssetContainer);
@@ -463,7 +605,7 @@ function visibilityCheck() {
   });
 }
 
-// setInterval(visibilityCheck, 500);
+setInterval(visibilityCheck, 500);
 
 function midpoint(lat1, long1, lat2, long2, per) {
   return [lat1 + (lat2 - lat1) * per, long1 + (long2 - long1) * per];
@@ -480,3 +622,32 @@ function set_AssetsOpaque(val, container) {
   container.radarAsset.setStyle({ fillOpacity: val, weight: val2 });
   container.attackAsset.setStyle({ fillOpacity: val, weight: val2 });
 }
+
+
+function toggleAllAids() {
+  assetBank.forEach(asset => {
+    asset.clear_RouteAssets(map);
+    asset.clear_persistentAssets(map);
+  });
+
+}
+
+function toggleRoute() {
+  assetBank.forEach(asset => {
+    asset.clear_RouteAssets(map);
+  });
+
+}
+
+window.toggleAllAids = toggleAllAids;
+window.toggleRoute = toggleRoute;
+
+// 
+// DEBUGGING
+// 
+
+function debugChangeTeam() {
+  team = document.getElementById("debug-select-team").value
+}
+
+window.debugChangeTeam = debugChangeTeam

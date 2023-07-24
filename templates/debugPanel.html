@@ -1,0 +1,12 @@
+{% macro debugMacro() -%}
+<div class="bg-dark text-warning">
+  <div class="fixed-side-panel fixed-top bg-dark" style="margin-top: 80px;">
+    <label for="debug-select-team" class="form-label">Team</label>
+    <select class="form-select" aria-label="Default select example" id="debug-select-team" onchange="debugChangeTeam()">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+    </select>
+  </div>
+</div>
+{%- endmacro %}
