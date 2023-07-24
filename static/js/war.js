@@ -53,7 +53,15 @@ class Base extends MapAsset {
 }
 
 class Container extends MapAsset {
-  constructor(asset, start, end, team = 1, assetType = "plane", paused_times = null, resume_times = null) {
+  constructor(
+    asset,
+    start,
+    end,
+    team = 1,
+    assetType = "plane",
+    paused_times = null,
+    resume_times = null
+  ) {
     super(asset);
     //computed
     this.currentPath = null;
@@ -74,7 +82,9 @@ class Container extends MapAsset {
     this.startTime = null;
     this.movementStatus = null;
     this.done = false;
-    this.paused_times = paused_times ? paused_times : [];
+    this.paused_times = paused_times
+      ? paused_times
+      : [null, null, null, null, null];
     this.resume_times = resume_times ? resume_times : [];
   }
 
@@ -83,20 +93,18 @@ class Container extends MapAsset {
     this.paths.forEach((path) => {
       savedPaths.push({ start: path.start, end: path.end });
     });
-    console.log(this)
     let saveObj = {
       startTime: this.startTime,
-      currentPath: this.done ? null: this.currentPath.id,
+      currentPath: this.done ? null : this.currentPath.id,
       currentPathProgress: null,
       team: this.team,
       paths: savedPaths,
       ismoving: this.ismoving,
       start: this.start,
       end: this.end,
-      pause_times: this.paused_times,
-      resume_times: this.resume_times
+      paused_times: this.paused_times,
+      resume_times: this.resume_times,
     };
-    console.log(saveObj);
     return saveObj;
   }
 
@@ -106,9 +114,12 @@ class Container extends MapAsset {
   }
 
   getCurrentCoords() {
-    console.log(this.done)
+    if (this.paused_times[3] && !this.paused_times[4]) {
+      // let point = []
+      return [this.paused_times[1], this.paused_times[2]]
+    }
     if (this.done === true || this.done === undefined) {
-      return this.end
+      return this.end;
     }
     let path = this.currentPath;
     var progress = path.getProgress();
@@ -119,7 +130,7 @@ class Container extends MapAsset {
       path.end.lng,
       progress
     );
-    return newPosition
+    return newPosition;
   }
 
   paintOnMap() {
@@ -133,7 +144,7 @@ class Container extends MapAsset {
       // shadowAnchor: [4, 62],  // the same for the shadow
       // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
     });
-    let initCoords = this.getCurrentCoords()
+    let initCoords = this.getCurrentCoords();
     var assetMarker = L.marker(initCoords, {
       icon: greenIcon,
       opacity: 1,
@@ -178,9 +189,10 @@ class Container extends MapAsset {
     map.removeLayer(this.attackAsset);
   }
 
-
   add_persistentAssets(map, coords) {
-    this.asset.bindPopup(`<p>Team ${this.team}</p><p>Raptor-II</p>`).openPopup();
+    this.asset
+      .bindPopup(`<p>Team ${this.team}</p><p>Raptor-II</p>`)
+      .openPopup();
     var radarAsset = L.circle(coords, {
       color: "green",
       // fillColor: "#212",
@@ -221,7 +233,7 @@ class Container extends MapAsset {
 
   orientAsset() {
     if (this.currentPath === null) {
-      return
+      return;
     }
     let currentPath = this.currentPath;
     // console.log("REORIENT ME");
@@ -268,7 +280,7 @@ class Container extends MapAsset {
       if (path.id == this.currentPath.id) {
         if (this.paths.length - 1 == i) {
           //completed all waypoints
-          this.completedAllWaypoints()
+          this.completedAllWaypoints();
           return true;
         } else {
           this.currentPath = this.paths[i + 1];
@@ -281,79 +293,88 @@ class Container extends MapAsset {
     //get next path
   }
 
-
   pause_movement() {
     this.ismoving = false;
     this.currentPath.paused_time = Date.now() / 1000;
-    this.paused_times.push(Date.now()/1000)
+    this.paused_times[0] = this.currentPath.id;
+    this.paused_times[1] = this.asset.getLatLng().lat;
+    this.paused_times[2] = this.asset.getLatLng().lng;
+    this.paused_times[3] = Date.now() / 1000;
+    this.paused_times[4] = null;
   }
 
-  continue_movement() { 
+  continue_movement() {
     let timeElapsed = Date.now() / 1000 - this.currentPath.paused_time;
     this.currentPath.endTime += timeElapsed;
-    console.log(timeElapsed, this.currentPath.endTime);
     this.ismoving = true;
-    this.resume_times.push(Date.now()/1000);
+    this.paused_times[4] = Date.now() / 1000;
   }
 
   start_movement() {
-    //start exp
-    let last_pause_index = 0;
-    let last_resume_index = 0;
-    // value to path during pause
-    let pathIncrement;
-    let pauseStatus = false;
-    //end exp
     let startTime;
-    if (this.startTime === null) {
+    console.log(this.paused_times)
+    if (this.paused_times[4] || this.paused_times[3]) {
+      let path = this.paths[this.paused_times[0]]
+      let distStartToCurr = path.start.distanceTo(new L.LatLng(this.paused_times[1], this.paused_times[2])) / 1000
+      let distStartToFin = path.distance
+      let progress = distStartToCurr / distStartToFin
+      startTime = this.paused_times[4] - (path.flightTime * progress)
+      let currentTime = Date.now() / 1000;
+      for (let i = this.paused_times[0]; i < 1000; i++) {
+        path = this.paths[i];
+        if (path === undefined) {
+          break;
+        }
+        path.startFlight(startTime);
+        if (this.paused_times[3] && !this.paused_times[4]) {
+          this.currentPath = path;
+          this.currentPath.paused_time = this.paused_times[3];
+          this.ismoving = false;
+          return
+        }
+        if (path.endTime >= currentTime) {
+          // found current path, break computation
+          this.startWaypoint(path)
+          return;
+        }
+        startTime += path.flightTime;
+      }
+      //iterated through all paths
+      //meaning movement is done
+      this.completedAllWaypoints();
+      return
+    } 
+    else if (this.startTime === null) {
+      /// this is created from input rather than reading data
       startTime = Date.now() / 1000;
       this.startTime = startTime;
-    }
-    else {
-      startTime = this.startTime
+    } else {
+      startTime = this.startTime;
     }
     let currentTime = Date.now() / 1000;
-    this.startTime = startTime
-    //start exp
     for (let i = 0; i < 1000; i++) {
       var path = this.paths[i];
       if (path === undefined) {
         break;
       }
-      //   pathIncrement = 0
-    //   loop2:
-    //   for (let j = last_pause_index; j < 1000; j++) {
-    //     let pause_time = this.paused_times[j]
-    //     if (pause_time && pause_time >= startTime) {
-    //       console.log("x");
-    //       last_pause_index = j;
-    //       let resume_time = this.resume_times[last_resume_index]
-    //       if (resume_time !== undefined) {
-    //         last_resume_index += 1;
-    //         pathIncrement += resume_time
-    //       }
-    //       else {
-    //         pauseStatus = true
-    //       }
-    //     }
-    //     if (pause_time === undefined) {
-    //       break loop2;
-    //     }
-    //   }
-      // end exp
-      path.startFlight(startTime)
+      path.startFlight(startTime);
       if (path.endTime >= currentTime) {
-        this.ismoving = true;
-        this.currentPath = path;
-        this.done = false;
-        return
+        // found current path, break computation
+        this.startWaypoint(path)
+        return;
       }
-      startTime += path.flightTime
+      startTime += path.flightTime;
     }
     //iterated through all paths
-    this.completedAllWaypoints()
+    //meaning movement is done
+    this.completedAllWaypoints();
   }
 
+  startWaypoint(path) {
+    this.ismoving = true;
+    this.currentPath = path;
+    this.done = false;
+  }
 
   completedAllWaypoints() {
     this.currentPath = null;
@@ -367,6 +388,7 @@ class Container extends MapAsset {
     if (this.paths.length == 0) {
       return;
     }
+    //compute flight Times for all paths
     let totalFlightTime = 0;
     this.paths.forEach((path) => {
       let start = path.start;
@@ -380,6 +402,7 @@ class Container extends MapAsset {
       path.flightTime = flightTime;
       totalFlightTime += flightTime;
     });
+    // get total flight from start to end
     this.totalFlightTime = totalFlightTime;
     let tooltip = L.tooltip()
       .setLatLng(this.end)
@@ -397,10 +420,8 @@ class Container extends MapAsset {
         )}, ${this.end.lng.toFixed(2)}}.`
       );
       if (this.ismoving) {
-
       }
     }
-
   }
 }
 
@@ -411,16 +432,18 @@ socket.on("continueAction", (data) => {
 
 document.addEventListener("DOMContentLoaded", function () {
   function updateCoords(e) {
-    let point = e.latlng.wrap()
-    let ele = document.getElementById("coords-bottom")
-    ele.textContent = `Coordinates: |${point.lat.toFixed(2)},${point.lng.toFixed(2)}|`
+    let point = e.latlng.wrap();
+    let ele = document.getElementById("coords-bottom");
+    ele.textContent = `Coordinates: |${point.lat.toFixed(
+      2
+    )},${point.lng.toFixed(2)}|`;
   }
   function x(e) {
     let point = e.latlng.wrap();
     input_latlngs.push(point);
   }
   map = init_map();
-  map.on("mousemove", updateCoords)
+  map.on("mousemove", updateCoords);
   map.on("click", x);
   // let newBase = new Base(paintBase(map), 2);
   // newBase.add_persistentAssets(map);
@@ -431,23 +454,31 @@ document.addEventListener("DOMContentLoaded", function () {
     let input_latlngs = [];
     let initPoint = asset.paths[0];
     if (asset.paths.length >= 1) {
-      input_latlngs.push(new L.LatLng(initPoint.start.lat, initPoint.start.lng));
+      input_latlngs.push(
+        new L.LatLng(initPoint.start.lat, initPoint.start.lng)
+      );
       asset.paths.forEach((latlngString) => {
         let newPoint = new L.LatLng(latlngString.end.lat, latlngString.end.lng);
         input_latlngs.push(newPoint);
       });
-
     }
     let options = {
       paused_times: asset.paused_times,
-      resume_times: asset.resume_times
-    }
-    console.log(options)
-    createAssets(input_latlngs, team, null, asset.startTime, asset.start, asset.end, options);
+      resume_times: asset.resume_times,
+    };
+    createAssets(
+      input_latlngs,
+      team,
+      null,
+      asset.startTime,
+      asset.start,
+      asset.end,
+      options
+    );
   });
 });
 
-setInterval(updateAssets, 200);
+setInterval(updateAssets, 100);
 
 function dumpContainers() {
   let dump = [];
@@ -456,7 +487,7 @@ function dumpContainers() {
   });
   store.remove("data");
   store("data", dump);
-  console.log("DUMPED");
+  console.log("DUMPED", dump);
 }
 
 document.addEventListener("keyup", (event) => {
@@ -514,22 +545,36 @@ function countryToggle(event, country) {
 
 window.countryToggle = countryToggle;
 
-function createAssets(lat_lngs_array, team = 1, stationary_start = null, starttime = null, start=null, end=null, options) {
+function createAssets(
+  lat_lngs_array,
+  team = 1,
+  stationary_start = null,
+  starttime = null,
+  start = null,
+  end = null,
+  options
+) {
   let container;
   if (options) {
-    container = new Container(null, null, null, team, null, options.paused_times, options.resume_times);
-  }
-  else {
+    container = new Container(
+      null,
+      null,
+      null,
+      team,
+      null,
+      options.paused_times,
+      options.resume_times
+    );
+  } else {
     container = new Container(null, null, null, team, null);
-
   }
-  container.startTime = starttime
+  container.startTime = starttime;
   container.input_latlngs = lat_lngs_array;
   // is moving
   if (container.input_latlngs.length > 0) {
     var latlngs = container.input_latlngs;
     container.start = latlngs[0];
-    container.end = latlngs[latlngs.length-1]
+    container.end = latlngs[latlngs.length - 1];
     for (let i = 0; i < latlngs.length; i++) {
       if (i + 1 == latlngs.length) {
         container.end = latlngs[i];
@@ -543,7 +588,7 @@ function createAssets(lat_lngs_array, team = 1, stationary_start = null, startti
   }
   // is finished moving
   else {
-    container.start = stationary_start
+    container.start = stationary_start;
     container.done = true;
   }
   assetBank.push(container);
@@ -555,12 +600,11 @@ function createAssets(lat_lngs_array, team = 1, stationary_start = null, startti
     container.end = end;
   }
   container.paintOnMap();
-  return container
+  return container;
 }
 
 function updateAssets() {
   assetBank.forEach((assetContainer) => {
-
     var assetMarker = assetContainer.asset;
     if (!assetContainer.ismoving) {
       return;
@@ -623,31 +667,28 @@ function set_AssetsOpaque(val, container) {
   container.attackAsset.setStyle({ fillOpacity: val, weight: val2 });
 }
 
-
 function toggleAllAids() {
-  assetBank.forEach(asset => {
+  assetBank.forEach((asset) => {
     asset.clear_RouteAssets(map);
     asset.clear_persistentAssets(map);
   });
-
 }
 
 function toggleRoute() {
-  assetBank.forEach(asset => {
+  assetBank.forEach((asset) => {
     asset.clear_RouteAssets(map);
   });
-
 }
 
 window.toggleAllAids = toggleAllAids;
 window.toggleRoute = toggleRoute;
 
-// 
+//
 // DEBUGGING
-// 
+//
 
 function debugChangeTeam() {
-  team = document.getElementById("debug-select-team").value
+  team = document.getElementById("debug-select-team").value;
 }
 
-window.debugChangeTeam = debugChangeTeam
+window.debugChangeTeam = debugChangeTeam;

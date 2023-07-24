@@ -8,12 +8,15 @@ export default class Path {
     this.start = start;
     this.end = end;
     this.done = false;
+    // set in init_movement
     this.flightTime = null;
     this.startTime = null;
     this.distance = null;
     this.endTime = null;
     this.id = null;
     this.paused_time = null;
+    this.paused_times = [];
+    this.resume_times = [];
 
   }
 
