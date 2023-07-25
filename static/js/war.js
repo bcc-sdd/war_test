@@ -19,6 +19,7 @@ class MapAsset {
     this.radarAsset = null;
     this.attackAsset = null;
     this.asset = asset;
+    this.id = null;
   }
 }
 
@@ -27,6 +28,8 @@ class Base extends MapAsset {
     super(asset);
     this.assetType = assetType;
     this.team = team;
+    this.has_routeAssets = false;
+    this.has_radarAssets = false;
   }
 
   add_persistentAssets(map) {
@@ -60,7 +63,6 @@ class Container extends MapAsset {
     team = 1,
     assetType = "plane",
     paused_times = null,
-    resume_times = null
   ) {
     super(asset);
     //computed
@@ -84,8 +86,7 @@ class Container extends MapAsset {
     this.done = false;
     this.paused_times = paused_times
       ? paused_times
-      : [null, null, null, null, null];
-    this.resume_times = resume_times ? resume_times : [];
+      : [null, null, null, null, null, null];
   }
 
   containerSave() {
@@ -94,16 +95,17 @@ class Container extends MapAsset {
       savedPaths.push({ start: path.start, end: path.end });
     });
     let saveObj = {
-      startTime: this.startTime,
       currentPath: this.done ? null : this.currentPath.id,
+      //OK
+      startTime: this.startTime,
       currentPathProgress: null,
       team: this.team,
-      paths: savedPaths,
       ismoving: this.ismoving,
       start: this.start,
       end: this.end,
       paused_times: this.paused_times,
-      resume_times: this.resume_times,
+      //TODO
+      paths: savedPaths,
     };
     return saveObj;
   }
@@ -153,15 +155,18 @@ class Container extends MapAsset {
     assetMarker.addTo(map);
     this.asset = assetMarker;
     this.add_persistentAssets(map, initCoords);
-
     this.orientAsset();
   }
 
   clear_RouteAssets(map) {
     this.routeAssets.forEach((asset) => map.removeLayer(asset));
+    this.has_routeAssets = false;
   }
 
   add_routeAssets() {
+    if (this.has_routeAssets) {
+      return
+    }
     this.paths.forEach((path) => {
       this.routeAssets.push(path.polyline);
       path.polyline.addTo(map);
@@ -171,28 +176,34 @@ class Container extends MapAsset {
       color: "red",
       fillColor: "#f03",
       fillOpacity: 0.5,
-      radius: 500000,
+      radius: 100000,
     });
     startCircle.addTo(map);
     var endCircle = L.circle(this.end, {
-      color: "red",
+      color: "green",
       fillColor: "#212",
       fillOpacity: 0.5,
-      radius: 500000,
+      radius: 100000,
     });
     endCircle.addTo(map);
     this.routeAssets.push(startCircle, endCircle);
+    this.has_routeAssets = true;
   }
 
   clear_persistentAssets(map) {
     map.removeLayer(this.radarAsset);
     map.removeLayer(this.attackAsset);
+    this.has_radarAssets = false;
+    this.has_routeAssets = false;
   }
 
   add_persistentAssets(map, coords) {
-    this.asset
-      .bindPopup(`<p>Team ${this.team}</p><p>Raptor-II</p>`)
-      .openPopup();
+    if (this.has_radarAssets) {
+      return
+    }
+    // this.asset
+    //   .bindPopup(`<p>Team ${this.team}</p><p>Raptor-II</p>`)
+    //   .openPopup();
     var radarAsset = L.circle(coords, {
       color: "green",
       // fillColor: "#212",
@@ -211,18 +222,13 @@ class Container extends MapAsset {
     attackAsset.addTo(map);
     this.radarAsset = radarAsset;
     this.attackAsset = attackAsset;
+    this.has_radarAssets = true;
   }
   update_persistentAssets(coords) {
     this.radarAsset.setLatLng(coords);
     this.attackAsset.setLatLng(coords);
   }
 
-  collisionCheck(container) {
-    return (
-      this.asset.getLatLng().distanceTo(container.asset.getLatLng()) <=
-      this.attackAsset.getRadius() + container.attackAsset.getRadius()
-    );
-  }
 
   can_detectContainer(container) {
     return (
@@ -294,32 +300,74 @@ class Container extends MapAsset {
   }
 
   pause_movement() {
+    if (!this.ismoving) { 
+      return
+    }
     this.ismoving = false;
     this.currentPath.paused_time = Date.now() / 1000;
+    //pathid int
     this.paused_times[0] = this.currentPath.id;
+    //posi
     this.paused_times[1] = this.asset.getLatLng().lat;
     this.paused_times[2] = this.asset.getLatLng().lng;
+    //time pause
     this.paused_times[3] = Date.now() / 1000;
+    //time resume
     this.paused_times[4] = null;
+    //progress
+    this.paused_times[5] = this.currentPath.getProgress()
   }
 
   continue_movement() {
-    let timeElapsed = Date.now() / 1000 - this.currentPath.paused_time;
-    this.currentPath.endTime += timeElapsed;
-    this.ismoving = true;
+    let path = this.currentPath
+    let progress = this.paused_times[5]
+    let currentTime = Date.now() / 1000;
+    let startTime = currentTime - (path.flightTime * progress)
+    path.startFlight(startTime)
     this.paused_times[4] = Date.now() / 1000;
+    this.ismoving = true;
   }
+
+  getProgress() {
+    let time_travelled_sofar = 0
+    let pl = this.paths.length
+    if (this.done) {
+      return 1
+    }
+    for (let i=0; i<pl; i++) {
+      let path = this.paths[i];
+      if (this.currentPath.id != i) {
+        time_travelled_sofar += path.flightTime
+      }
+      else if (this.paused_times[3] && !this.paused_times[4]) {
+        time_travelled_sofar += (this.paused_times[5] * path.flightTime)
+        break;
+      }
+      else {
+        time_travelled_sofar += (path.getProgress() * path.flightTime)
+        break;
+      }
+    }
+    let progress = time_travelled_sofar/this.totalFlightTime
+    return progress >= 1 ? 1 : progress
+  }
+
 
   start_movement() {
     let startTime;
     console.log(this.paused_times)
     if (this.paused_times[4] || this.paused_times[3]) {
       let path = this.paths[this.paused_times[0]]
-      let distStartToCurr = path.start.distanceTo(new L.LatLng(this.paused_times[1], this.paused_times[2])) / 1000
-      let distStartToFin = path.distance
-      let progress = distStartToCurr / distStartToFin
-      startTime = this.paused_times[4] - (path.flightTime * progress)
+      let progress = this.paused_times[5]
       let currentTime = Date.now() / 1000;
+      if (this.paused_times[4]) {
+        startTime = this.paused_times[4] - (path.flightTime * progress)
+      }
+      else {
+        // to remove if buggy
+        console.log('BUGGY')
+        startTime = currentTime
+      }
       for (let i = this.paused_times[0]; i < 1000; i++) {
         path = this.paths[i];
         if (path === undefined) {
@@ -343,7 +391,7 @@ class Container extends MapAsset {
       //meaning movement is done
       this.completedAllWaypoints();
       return
-    } 
+    }
     else if (this.startTime === null) {
       /// this is created from input rather than reading data
       startTime = Date.now() / 1000;
@@ -381,6 +429,10 @@ class Container extends MapAsset {
     this.ismoving = false;
     this.paths.length = 0;
     this.done = true;
+    let len = this.paused_times.length - 1
+    for (let i = 0; i <= len; i++) {
+      this.paused_times[i] = null;
+    }
   }
 
   init_movement() {
@@ -419,8 +471,10 @@ class Container extends MapAsset {
           2
         )}, ${this.end.lng.toFixed(2)}}.`
       );
-      if (this.ismoving) {
-      }
+    }
+    else if (this.paused_times[1]) {
+      console.log('here')
+      this.add_routeAssets();
     }
   }
 }
@@ -462,10 +516,7 @@ document.addEventListener("DOMContentLoaded", function () {
         input_latlngs.push(newPoint);
       });
     }
-    let options = {
-      paused_times: asset.paused_times,
-      resume_times: asset.resume_times,
-    };
+    let paused_times = asset.paused_times;
     createAssets(
       input_latlngs,
       team,
@@ -473,7 +524,7 @@ document.addEventListener("DOMContentLoaded", function () {
       asset.startTime,
       asset.start,
       asset.end,
-      options
+      paused_times
     );
   });
 });
@@ -490,24 +541,32 @@ function dumpContainers() {
   console.log("DUMPED", dump);
 }
 
+function getProgress() {
+  assetBank.forEach(asset => {console.log(asset.getProgress())})
+}
+
 document.addEventListener("keyup", (event) => {
-  console.log(event.code);
-  if (event.code === "KeyD") {
-    dumpContainers();
-  } else if (event.code === "KeyS") {
-    spawnGoons();
-  } else if (event.code === "Enter") {
-    createAssets(input_latlngs, 1);
-    input_latlngs.length = 0;
-  } else if (event.code === "Space") {
-    let testPlane = assetBank[assetBank.length - 1];
-    if (testPlane.ismoving) {
-      console.log("PAUSE");
-      testPlane.pause_movement();
-    } else {
-      testPlane.continue_movement();
+  switch (event.code) {
+    case "KeyP": getProgress(); break;
+    case "KeyD": dumpContainers(); break;
+    case "KeyS": spawnGoons(); break;
+    case "Enter": {
+      createAssets(input_latlngs, 1);
+      input_latlngs.length = 0;
+      break;
     }
-    // simulateArmagedon();
+    case "Space": {
+      let testPlane = assetBank[assetBank.length - 1];
+      if (testPlane.ismoving) {
+        console.log("PAUSE");
+        testPlane.pause_movement();
+      } else {
+        testPlane.continue_movement();
+
+      }
+      break;
+    }
+
   }
 });
 
@@ -545,6 +604,10 @@ function countryToggle(event, country) {
 
 window.countryToggle = countryToggle;
 
+function createStationaryAssets(data) {
+
+}
+
 function createAssets(
   lat_lngs_array,
   team = 1,
@@ -552,22 +615,20 @@ function createAssets(
   starttime = null,
   start = null,
   end = null,
-  options
+  paused_times = null
 ) {
-  let container;
-  if (options) {
-    container = new Container(
-      null,
-      null,
-      null,
-      team,
-      null,
-      options.paused_times,
-      options.resume_times
-    );
-  } else {
-    container = new Container(null, null, null, team, null);
+  if (lat_lngs_array.length == 1) {
+    console.log('Insufficient amount of waypoints. Supplied: 1')
+    return
   }
+  let container;
+  container = new Container(
+    null,
+    null,
+    null,
+    team,
+    null,
+    paused_times)
   container.startTime = starttime;
   container.input_latlngs = lat_lngs_array;
   // is moving
@@ -591,6 +652,8 @@ function createAssets(
     container.start = stationary_start;
     container.done = true;
   }
+  //SET ID
+  container.id = assetBank.length
   assetBank.push(container);
   //contains check whether has path or not
   if (container.input_latlngs.length > 0) {
@@ -634,13 +697,29 @@ function updateAssets() {
   });
 }
 
+function collisionCheck(origin, container) {
+  console.log(origin, container)
+  let distance = origin.asset.getLatLng().distanceTo(container.asset.getLatLng())
+  let radius = origin.attackAsset.getRadius() + container.attackAsset.getRadius()
+  console.log(distance, radius)
+  if (distance <= radius) {
+    origin.pause_movement();
+    container.pause_movement();
+  };
+}
+
 function visibilityCheck() {
   assetBank.forEach((assetContainer) => {
-    stationaryAssetBank.forEach((otherAssetContainer) => {
-      if (otherAssetContainer.team == team) {
-        return;
+    assetBank.forEach((otherAssetContainer) => {
+      if (assetContainer.id == otherAssetContainer.id) {
+        return
       }
-      // assetContainer.collisionCheck(otherAssetContainer);
+      collisionCheck(assetContainer, otherAssetContainer);
+    })
+    stationaryAssetBank.forEach((otherAssetContainer) => {
+      // if (otherAssetContainer.team == team) {
+      //   return;
+      // }
       set_AssetsOpaque(
         assetContainer.can_detectContainer(otherAssetContainer),
         otherAssetContainer
@@ -667,22 +746,51 @@ function set_AssetsOpaque(val, container) {
   container.attackAsset.setStyle({ fillOpacity: val, weight: val2 });
 }
 
-function toggleAllAids() {
-  assetBank.forEach((asset) => {
+
+function toggle_ROUTE(asset, boolval,) {
+  if (boolval) {
+    asset.add_routeAssets()
+  }
+  else {
     asset.clear_RouteAssets(map);
-    asset.clear_persistentAssets(map);
-  });
+  }
 }
 
-function toggleRoute() {
+function toggle_RADARS(asset, boolval) {
+  if (boolval) {
+    asset.add_persistentAssets(map, asset.asset.getLatLng())
+  }
+  else {
+    asset.clear_persistentAssets(map)
+  }
+}
+
+function toggleAllAids(event) {
+  var truthiness = event.srcElement.checked ? true : false;
   assetBank.forEach((asset) => {
-    asset.clear_RouteAssets(map);
-  });
+    toggle_ROUTE(asset, truthiness)
+    toggle_RADARS(asset, truthiness)
+  })
+}
+
+function toggleRoute(event) {
+  var truthiness = event.srcElement.checked ? true : false;
+  assetBank.forEach((asset) => {
+    toggle_ROUTE(asset, truthiness)
+  })
+}
+
+
+function toggleRadars(event) {
+  var truthiness = event.srcElement.checked ? true : false;
+  assetBank.forEach((asset) => {
+    toggle_RADARS(asset, truthiness)
+  })
 }
 
 window.toggleAllAids = toggleAllAids;
 window.toggleRoute = toggleRoute;
-
+window.toggleRadars = toggleRadars;
 //
 // DEBUGGING
 //

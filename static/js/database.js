@@ -8,7 +8,7 @@ async function pullData(url) {
 
 async function pullAssets() {
     let data = await pullData('Map_Controller/getAssignedAsset');
-    return data
+    return data;
 }
 
 async function pushLocation(assets) {

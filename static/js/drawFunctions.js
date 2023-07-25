@@ -49,7 +49,7 @@ export function drawPoint(map, coords, draggable=false) {
         draggable: draggable,
         fillColor: "#f03",
         fillOpacity: 0.5,
-        radius: 500000,
+        radius: 100000,
     });
     startCircle.addTo(map);
     return startCircle

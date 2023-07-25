@@ -26,7 +26,7 @@ export default class Path {
 
   getProgress() {
     var currentTime = Date.now() / 1000;
-    let progress = 1 - (this.endTime - currentTime) / this.flightTime;
+    let progress = 1 - ((this.endTime - currentTime) / this.flightTime);
     return progress
   }
 }

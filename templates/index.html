@@ -87,15 +87,21 @@
 
       <div class="dropdown-menu" style="padding: 4px">
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="toggleAllAids()"/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="toggleAllAids(event)"/>
           <label class="form-check-label" for="visual-1">
             All
           </label>
         </div>
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="toggleRoute()"/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-2" onchange="toggleRoute(event)"/>
           <label class="form-check-label" for="visual-1">
-            Route
+            Routes
+          </label>
+        </div>
+        <div>
+          <input class="form-check-input" type="checkbox" value="" id="visual-3" onchange="toggleRadars(event)"/>
+          <label class="form-check-label" for="visual-1">
+            Radars
           </label>
         </div>
       </div>
