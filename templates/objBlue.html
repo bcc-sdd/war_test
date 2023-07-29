@@ -1,0 +1,143 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.css') }}" />
+
+</head>
+
+<body>
+    <div class="card" style="max-width: 70vw;">
+        <table class="table" id="objTable">
+            <thead>
+                <tr>
+                    <th scope="col">Number</th>
+                    <th scope="col">Objective</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody id="objBody">
+                <tr>
+                    <td>1</td>
+                    <td>
+                        Negotiate a peace settlement between China and Russia regarding possible conflict in
+                        Central Asia whereby 12,000 US Marines are stationed.
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Negotiate with Russia a grain deal but with a 50% reduction of Russian ICBMs totaling
+                        currently at 760 missiles.</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Prevent Chinese expansionism in Southeast Asia. </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>
+                        Discover who is the top level mole/spy in the US whether handled by the Russians and/
+                        or Chinese.
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Prevent the Iranian and North Korean development of Nuclear Weapons. </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>
+                        Prevent China from obtaining an oil pipeline from Iran going to China.
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>
+                        Influence a Russian or Chinese top level official to defect to the US.
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>8</td>
+                    <td>
+                        Prevent Russian expansionism in the North Sea and North Atlantic.
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>9</td>
+                    <td>
+                        Prevent disintegration of NATO.
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>10</td>
+                    <td>
+                        Negotiate a deal with India US-made weapons for a naval port in Berhampur.
+                    </td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+<script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
+<script>
+    const socket = io("http://localhost:8000/");
+    let results = { 1: true , 2: false}
+
+    function init() {
+        let htmlString = `<div class="btn-group" role="group" aria-label="Basic mixed styles example">
+            <button type="button" class="btn btn-success"
+            onclick="success(event, 'blue')">Success</button>
+            <button type="button" class="btn btn-danger" onclick="fail(event, 'blue')">Failed</button>
+            </div>`
+        for (let i = 0; i < 10; i++) {
+            console.log(results[i])
+            if (results[i]) {
+                document.getElementById("objTable").rows[i+1].classList.add("table-success")
+            }
+            else if(results[i] === undefined) {
+                document.getElementById("objTable").rows[i+1].cells[2].innerHTML = htmlString
+            }
+            else {
+                document.getElementById("objTable").rows[i+1].classList.add("table-danger")
+
+            }
+        }
+    }
+    document.addEventListener("DOMContentLoaded", init)
+
+
+    function success(event, team_id) {
+        var objId = event.srcElement.parentElement.parentElement.parentElement.childNodes[1].textContent
+        let row = event.srcElement.parentElement.parentElement.parentElement
+        row.classList.add("table-success")
+        event.srcElement.parentElement.remove()
+        sendToServer(objId, true, team_id)
+    }
+
+    function fail(event, team_id) {
+        var objId = event.srcElement.parentElement.parentElement.parentElement.childNodes[1].textContent
+        let row = event.srcElement.parentElement.parentElement.parentElement
+        row.classList.add("table-danger")
+        event.srcElement.parentElement.remove()
+        sendToServer(objId, false, team_id)
+
+    }
+
+    function sendToServer(objId, result, team) {
+        results[objId] = true
+        let data = { id: objId, result: result, team_id: team }
+        socket.emit("objectiveUpdate", data)
+
+    }
+</script>
+
+</html>

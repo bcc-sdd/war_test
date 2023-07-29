@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.css') }}" />
 </head>
 
-<body>
+<body > 
   <nav class="navbar navbar-expand-lg bg-dark" style="
         position: absolute;
         width: 100vw;
@@ -87,19 +87,19 @@
 
       <div class="dropdown-menu" style="padding: 4px">
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="toggleAllAids(event)"/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="toggleAllAids(event)" checked/>
           <label class="form-check-label" for="visual-1">
             All
           </label>
         </div>
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-2" onchange="toggleRoute(event)"/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-2" onchange="toggleRoute(event)" checked/>
           <label class="form-check-label" for="visual-1">
             Routes
           </label>
         </div>
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-3" onchange="toggleRadars(event)"/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-3" onchange="toggleRadars(event)" checked/>
           <label class="form-check-label" for="visual-1">
             Radars
           </label>
@@ -156,12 +156,15 @@
       </div>
     </div>
   </div>
-  <div id="map" style="height: 100vh"></div>
+  <!-- <div id="map" style="height: 100vh; filter: invert(1) contrast(1.2);"></div> -->
+
+  <div id="map" style="height: 100vh;"></div>
   {{chatMacro.modalMacro()}}
   {{chatMacro.debugMacro()}}
-  {{debugPanel.debugMacro()}}
+  <!-- {{debugPanel.debugMacro()}} -->
 </body>
 <script src="{{ url_for('static', path='/js/leaflet.js') }}"></script>
+<script src="{{ url_for('static', path='/js/lib_pathflow.js') }}"></script>
 <script src="{{ url_for('static', path='/js/store.js') }}"></script>
 <script src="{{ url_for('static', path='/js/bootstrap.js') }}"></script>
 <script src="{{ url_for('static', path='/js/leaflet_rotation.js') }}"></script>

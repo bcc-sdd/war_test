@@ -1,0 +1,44 @@
+{% import 'chatMacro.html' as chatMacro %}
+
+<html>
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.css') }}" />
+    {%if }
+</head>
+
+<body>
+    
+</body>
+<script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
+<script>
+    const socket = io("http://localhost:8000/");
+    let results = {1: true}
+    
+
+    function success(event, team_id) {
+        var objId = event.srcElement.parentElement.parentElement.parentElement.childNodes[1].textContent
+        let row = event.srcElement.parentElement.parentElement.parentElement
+        row.classList.add("table-success")
+        event.srcElement.parentElement.remove()
+        sendToServer(objId, true, team_id)
+    }
+
+    function fail(event, team_id) {
+        var objId = event.srcElement.parentElement.parentElement.parentElement.childNodes[1].textContent
+        let row = event.srcElement.parentElement.parentElement.parentElement
+        row.classList.add("table-danger")
+        event.srcElement.parentElement.remove()
+        sendToServer(objId, false, team_id)
+
+    }
+
+    function sendToServer(objId, result, team) {
+        results[objId] = true
+        let data = { id: objId, result: result, team_id: team }
+        socket.emit("objectiveUpdate", data)
+
+    }
+</script>
+
+</html>

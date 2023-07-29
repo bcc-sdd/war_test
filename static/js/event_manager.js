@@ -1,0 +1,7 @@
+function eventCollision() {
+
+}
+
+function eventVisibility() {
+    
+}

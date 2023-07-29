@@ -1,0 +1,151 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.css') }}" />
+
+</head>
+
+<body>
+    <div class="card" style="max-width: 70vw;">
+        <table class="table" id="objTable">
+            <thead>
+                <tr>
+                    <th scope="col">Number</th>
+                    <th scope="col">Objective</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody id="objBody">
+               <tr>
+                    <td>1</td>
+                    <td>Negotiate with the US for US-made weapons in exchange
+                    for
+                    naval base in Mumbai.</td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>Prevent expansionism in the Bay of Bengal by China that
+                    intends to put up a naval port
+                    in Myanmar.</td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>Prevent the blockage of the South China Sea/West
+                    Philippine
+                    Sea by the Chinese naval
+                    forces.</td>
+                    <td></td>
+                </tr>
+
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Weaken Pakistani armed forces that support Islamic Terrorists.
+                </td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Discover who the high-ranking Indian official that is a mole/spy of the Chinese
+                    government.
+                </td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Strengthen border troops along the Indian-Chinese line.
+                </td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Negotiate with Russia for grain in exchange for Russian intervention against
+                    Chinese
+                    aggression.
+                </td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Immediately position the newest aircraft carrier of India in the Taiwan Strait.
+                </td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Defend and if necessary, totally annihilate Pakistan for any form of aggression.
+                </td>
+                    <td></td>
+                </tr>
+               <tr>
+                    <td>1</td>
+                    <td>
+                    Prevent China from acquiring an oil pipeline from Iran.
+                </td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+<script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
+<script>
+    const socket = io("http://localhost:8000/");
+    let results = { 1: true , 2: false}
+
+    function init() {
+        let htmlString = `<div class="btn-group" role="group" aria-label="Basic mixed styles example">
+            <button type="button" class="btn btn-success"
+            onclick="success(event, 'green')">Success</button>
+            <button type="button" class="btn btn-danger" onclick="fail(event, 'green')">Failed</button>
+            </div>`
+        for (let i = 0; i < 10; i++) {
+            console.log(results[i])
+            if (results[i]) {
+                document.getElementById("objTable").rows[i+1].classList.add("table-success")
+            }
+            else if(results[i] === undefined) {
+                document.getElementById("objTable").rows[i+1].cells[2].innerHTML = htmlString
+            }
+            else {
+                document.getElementById("objTable").rows[i+1].classList.add("table-danger")
+
+            }
+        }
+    }
+    document.addEventListener("DOMContentLoaded", init)
+
+
+    function success(event, team_id) {
+        var objId = event.srcElement.parentElement.parentElement.parentElement.childNodes[1].textContent
+        let row = event.srcElement.parentElement.parentElement.parentElement
+        row.classList.add("table-success")
+        event.srcElement.parentElement.remove()
+        sendToServer(objId, true, team_id)
+    }
+
+    function fail(event, team_id) {
+        var objId = event.srcElement.parentElement.parentElement.parentElement.childNodes[1].textContent
+        let row = event.srcElement.parentElement.parentElement.parentElement
+        row.classList.add("table-danger")
+        event.srcElement.parentElement.remove()
+        sendToServer(objId, false, team_id)
+
+    }
+
+    function sendToServer(objId, result, team) {
+        results[objId] = true
+        let data = { id: objId, result: result, team_id: team }
+        socket.emit("objectiveUpdate", data)
+
+    }
+</script>
+
+</html>

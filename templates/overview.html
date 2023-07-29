@@ -1,0 +1,464 @@
+<!-- requestDefcon -->
+{% import 'clockMacro.html' as clockMacro %}
+<html>
+
+<head>
+
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/clock.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/overview.css') }}" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron&display=swap" rel="stylesheet">
+</head>
+
+<body style="background-color: black; overflow: hidden;">
+    <div style="z-index: -5;left: 0 ;" class="position-absolute">
+        <img src="/static/images/jet.png" class="img-fluid " alt="..."
+            style="width: 50vw; transform: translateY(-50%);">
+
+    </div>
+    <div style="z-index: -5;right: 0 ;" class="position-absolute">
+        <img src="/static/images/jet.png" class="img-fluid " alt="..."
+            style="width: 50vw; transform: translateY(-70%);">
+
+    </div>
+    <div class="shadow-top"
+        style="height: 12vh; z-index: -1 ;width: 50vw; background-color: black; position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-radius: 0 0 25px 25px;">
+    </div>
+
+    <div class="navbar"
+        style="height: 14vh; width: 60vw; z-index: -2;position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-radius: 0 0 25px 25px;">
+    </div>
+
+    <div class="row" style="margin: 10px;">
+        <div class="col-3 text-white">
+            <span>
+                <img src="/static/images/bcc_logo.png" class="img-fluid " alt="..." style="max-height: 14vh;">
+            </span>
+        </div>
+        <div class="row col-6">
+
+            <div class="col-8"> {{clockMacro.clockMacro()}}
+            </div>
+            <div class="col-4 text-white row">
+                <div class="col-10">
+                    <div>
+                        <div class="text-center">Game time</div>
+                    </div>
+                    <div class="day bg-shore" style="font-size: 36px;">
+                        <span>8</span>
+                        <span>:</span>
+                        <span>0</span>
+                        <span>0</span>
+                        <span>PM</span>
+                    </div>
+                </div>
+                <div class="col-2">
+                    <div>DAY</div>
+                    <div class="day-numeral">7</div>
+                </div>
+
+
+            </div>
+        </div>
+
+        <div class="col-3 text-white">
+            <div style="position: absolute; right: 0;">
+                <img src="/static/images/navy.png" class="img-fluid" alt="..." style="max-height: 14vh;">
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="card-group">
+        <div class="card">
+            <div class="row">
+                <div class="col">
+                    <img src="/static/images/us.png" class="img-fluid border" alt="..." style="margin: 5px;">
+
+                </div>
+                <div class="col" style="margin-top: 5px; margin-right: 5px;">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Available assets
+                            </span>
+                            <span>
+                                1,110,000
+                            </span>
+                        </li>
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Destroyed assets
+                            </span>
+                            <span>
+                                10,000
+                            </span>
+                        </li>
+
+                    </ul>
+                    <div style="font-size: 40px; margin-top: 5px;" class="text-bold defcon-3" id="usa-defcon"
+                        data-defcon="3">
+                        DEFCON 3
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="card-body">
+                <ul class="list-group" id="blue">
+                    <li class="list-group-item">Negotiate a peace settlement between China and Russia regarding possible
+                        conflict in
+                        Central Asia whereby 12,000 US Marines are stationed.</li>
+                    <li class="list-group-item">Negotiate with Russia a grain deal but with a 50% reduction of Russian
+                        ICBMs totaling
+                        currently at 760 missiles.</li>
+                    <li class="list-group-item">Prevent Chinese expansionism in Southeast Asia.</li>
+
+                    <li class="list-group-item">
+                        Discover who is the top level mole/spy in the US whether handled by the Russians and/
+                        or Chinese.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent the Iranian and North Korean development of Nuclear Weapons.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent China from obtaining an oil pipeline from Iran going to China.
+                    </li>
+                    <li class="list-group-item">
+                        Influence a Russian or Chinese top level official to defect to the US.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent Russian expansionism in the North Sea and North Atlantic.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent disintegration of NATO.
+                    </li>
+                    <li class="list-group-item">
+                        Negotiate a deal with India US-made weapons for a naval port in Berhampur.
+                    </li>
+
+                </ul>
+
+            </div>
+        </div>
+        <div class="card">
+            <div class="row">
+                <div class="col">
+                    <img src="/static/images/Flag-India.webp" class="img-fluid border" alt="..." style="margin: 5px;">
+
+                </div>
+                <div class="col" style="margin-top: 5px; margin-right: 5px;">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Available assets
+                            </span>
+                            <span>
+                                1,110,000
+                            </span>
+                        </li>
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Destroyed assets
+                            </span>
+                            <span>
+                                10,000
+                            </span>
+                        </li>
+
+                    </ul>
+                    <div style="font-size: 40px; margin-top: 5px;" class="text-bold defcon-4" id="india-defcon"
+                        data-defcon="4">
+                        DEFCON 4
+                    </div>
+
+                </div>
+            </div>
+            <div class="card-body">
+                <ul class="list-group" id="green">
+                    <li class="list-group-item">Negotiate with the US for US-made weapons in exchange
+                        for
+                        naval base in Mumbai.</li>
+                    <li class="list-group-item">Prevent expansionism in the Bay of Bengal by China that
+                        intends to put up a naval port
+                        in Myanmar.</li>
+                    <li class="list-group-item">Prevent the blockage of the South China Sea/West
+                        Philippine
+                        Sea by the Chinese naval
+                        forces.</li>
+
+                    <li class="list-group-item">
+                        Weaken Pakistani armed forces that support Islamic Terrorists.
+                    </li>
+                    <li class="list-group-item">
+                        Discover who the high-ranking Indian official that is a mole/spy of the Chinese
+                        government.
+                    </li>
+                    <li class="list-group-item">
+                        Strengthen border troops along the Indian-Chinese line.
+                    </li>
+                    <li class="list-group-item">
+                        Negotiate with Russia for grain in exchange for Russian intervention against
+                        Chinese
+                        aggression.
+                    </li>
+                    <li class="list-group-item">
+                        Immediately position the newest aircraft carrier of India in the Taiwan Strait.
+                    </li>
+                    <li class="list-group-item">
+                        Defend and if necessary, totally annihilate Pakistan for any form of aggression.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent China from acquiring an oil pipeline from Iran.
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="card">
+            <div class="row">
+                <div class="col">
+                    <img src="/static/images/Flag-China.webp" class="img-fluid border" alt="..." style="margin: 5px;">
+
+                </div>
+                <div class="col" style="margin-top: 5px; margin-right: 5px;">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Available assets
+                            </span>
+                            <span>
+                                1,110,000
+                            </span>
+                        </li>
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Destroyed assets
+                            </span>
+                            <span>
+                                10,000
+                            </span>
+                        </li>
+
+                    </ul>
+                    <div style="font-size: 40px; margin-top: 5px;" class="text-bold defcon-2" id="china-defcon"
+                        data-defcon="2">
+                        DEFCON 2
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="card-body">
+                <!-- <h5 class="card-title">Card title</h5> -->
+                <ul class="list-group" id="yellow">
+                    <li class="list-group-item">
+                        Invade Kazakhstan after two days of negotiating with Russia.
+                    </li>
+                    <li class="list-group-item">
+                        Quarantine Taiwan Strait and West Philippine Sea after three days of negotiating with
+                        the US.</li>
+                    <li class="list-group-item">
+                        Provide nuclear weapons to Iran and send through their aircraft carrier Liaoning Battle
+                        Group.
+                    </li>
+
+                    <li class="list-group-item">
+                        Provide nuclear weapons after four days of negotiating with the US to North Korea
+                        through air transport using Xian Y-20.
+                    </li>
+                    <li class="list-group-item">
+                        Invade Taiwan after five days of operations
+                    </li>
+                    <li class="list-group-item">
+                        Agitate Pakistan to declare war against India.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent Russia and US from entering a grain trade deal. Let the Russians suffer famine.
+                    </li>
+                    <li class="list-group-item">
+                        Release biological weapon after six hours of operation to US, Russia and India. </li>
+                    <li class="list-group-item">
+                        Undertake a massive border skirmish against Indian border troops and eventually start
+                        building a naval dock in Myanmar </li>
+                    <li class="list-group-item">
+                        Recruit an Indian top level official to be an agent of the Chinese Foreign Intelligence
+                        Service and defect to China. </li>
+                </ul>
+            </div>
+        </div>
+        <div class="card">
+            <div class="row">
+                <div class="col">
+                    <img src="/static/images/Flag-Russia.webp" class="img-fluid border" alt="..." style="margin: 5px;">
+
+                </div>
+                <div class="col" style="margin-top: 5px; margin-right: 5px;">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Available assets
+                            </span>
+                            <span>
+                                1,110,000
+                            </span>
+                        </li>
+                        <li class="list-group-item">
+                            <span class="text-bold">
+                                Destroyed assets
+                            </span>
+                            <span>
+                                10,000
+                            </span>
+                        </li>
+
+                    </ul>
+                    <div style="font-size: 40px; margin-top: 5px;" class="text-bold defcon" id="russia-defcon"
+                        data-defcon="1">
+                        DEFCON 1
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="card-body">
+                <ul class="list-group" id="red">
+                    <li class="list-group-item ">
+                        Negotiate a grain deal with the United States without compromising its Nuclear
+                        Capability
+                    </li>
+                    <li class="list-group-item ">
+                        Control and counter possible Chinese invasion
+                    </li>
+                    <li class="list-group-item negoicon">
+                        Negotiate and prevent a nuclear deal between China and Iran.
+                    </li>
+
+                    <li class="list-group-item">
+                        Negotiate and prevent a nuclear deal between China and North Korea. </li>
+                    <li class="list-group-item">
+                        Quarantine with naval vessels the United Kingdom and Iceland.
+                    </li>
+                    <li class="list-group-item">
+                        Isolate Greenland and take over all airfields in Iceland.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent capture of Russian assets in Syria, Iraq and Afghanistan.
+                    </li>
+                    <li class="list-group-item">
+                        Prevent take over by US of Syria. </li>
+                    <li class="list-group-item">
+                        Prevent Chinese expansionism in Northwest Pacific to protect Vladivostok and
+                        Kamchatka Peninsula </li>
+                    <li class="list-group-item">
+                        Take over the Crimean Peninsula in Ukraine. </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+
+</body>
+<script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
+<script src="{{ url_for('static', path='/js/clock/rx.js') }}"></script>
+<script src="{{ url_for('static', path='/js/clock/rx2.js') }}"></script>
+<script src="{{ url_for('static', path='/js/clock/hammer.js') }}"></script>
+
+<script>
+    let defconUrl = `http://122.53.86.62:1945/Team_Controller/selectTeams`
+    document.addEventListener("DOMContentLoaded", async function () {
+        const fetchPromise = await fetch(`${defconUrl}`);
+        let teams =  await fetchPromise.json()
+        teams.forEach((team) => {
+            if (team.country == 'United Nations') {
+                return
+            }
+            console.log(team)
+            let subteam = team.country.toLowerCase();
+            let defcon = team.defcon.slice(-1)
+            updateDefcon(defcon, subteam)
+
+        })
+    })
+
+
+
+    function updateDefcon(defcon, team) {
+        let ele = document.getElementById(`${team}-defcon`)
+        ele.dataset['defcon'] = defcon
+        ele.innerHTML = `DEFCON ${defcon}`
+        var audio = new Audio('http://122.53.86.62:1945/assets/audio/nuclear_alarm.ogg');
+        audio.play();
+
+
+    }
+    let host = '122.53.86.62:3000/'
+    // let host = 'http://localhost:8000/'
+    const socket = io(host);
+
+    socket.on("requestDefcon", (data) => {
+        console.log(data)
+        let defcon = data.defcon.slice(-1)
+        let team = data.teamName.toLowerCase();
+       updateDefcon(defcon, team)
+
+    })
+
+    socket.on("connect", () => {
+        socket.emit("setDisplay")
+    });
+    socket.on("objectiveUpdate_overall", data => {
+        console.log(data)
+        document.getElementById(data.team_id).childNodes[((parseInt(data.id) - 1) * 2) + 1].classList.add(data.result ? "item-done" : "item-fail")
+    })
+    const timeElm = document.getElementById('time');
+    const doc = document.documentElement;
+    const { clientWidth, clientHeight } = doc;
+
+    const pad = val => val < 10 ? `0${val}` : val;
+    var futureTime = new Date(Date.now() + (3600 * 1000 * 8)).getTime();
+
+    const animationFrame$ = Rx.Observable.interval(0, Rx.Scheduler.animationFrame);
+
+    const time$ = Rx.Observable.
+        interval(1000).
+        map(() => {
+            var now = new Date().getTime();
+            var distance = futureTime - now;
+
+            return {
+                hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+                minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+                seconds: Math.floor((distance % (1000 * 60)) / 1000)
+            };
+
+        }).
+        subscribe(({ hours, minutes, seconds }) => {
+            timeElm.setAttribute('data-hours', pad(hours));
+            timeElm.setAttribute('data-minutes', pad(minutes));
+            timeElm.setAttribute('data-seconds', pad(seconds));
+        });
+
+    // const mouse$ = Rx.Observable.
+    //     fromEvent(document, 'mousemove').
+    //     map(({ clientX, clientY }) => ({
+    //         x: (clientWidth / 2 - clientX) / clientWidth,
+    //         y: (clientHeight / 2 - clientY) / clientHeight
+    //     }));
+
+
+    // const smoothMouse$ = animationFrame$.
+    //     withLatestFrom(mouse$, (_, m) => m).
+    //     scan(RxCSS.lerp(0.1));
+
+    RxCSS(
+        timeElm);
+</script>
+
+</html>

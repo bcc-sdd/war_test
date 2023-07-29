@@ -20,6 +20,6 @@ export default function paintBase(map) {
         rotationAngle: 0,
     });
     assetMarker.addTo(map);
-    assetMarker.bindPopup("Content Test").openPopup();
+    // assetMarker.bindPopup("Content Test").openPopup();
     return assetMarker;
 }

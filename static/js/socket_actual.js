@@ -1,5 +1,10 @@
+import { pullAttackIdAssets } from "./database.js";
+
 console.log("hello from socketactual");
-const socket = io("http://localhost:8000/");
+// const socket = io("http://localhost:3000/");
+
+const socket = io("122.53.86.62:3000/");
+// const socket = io("http://localhost:8000/");
 export default socket;
 
 // window.addEventListener("load", (e) => {
@@ -8,6 +13,10 @@ export default socket;
 //   myModal.show()
 // });
 
+socket.on("approvedMovement", async (attackId)=>{
+  let data = await pullAttackIdAssets()
+  console.log('data')
+})
 
 socket.on("connect", () => {
   console.log(socket.id); // x8WIv7-mJelg7on_ALbx

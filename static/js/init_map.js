@@ -25,20 +25,21 @@ function init_map_action() {
         maxZoom: 6,
         maxBounds: maxBounds,
     }).setView([30, 0], 2);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(
+    let mapUrlARCGIS = 'http://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+    let mapUrlOSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    L.tileLayer(mapUrlARCGIS).addTo(
         map
     );
     let options = {
         color: "green",
         weight: 1,
-        opacity: 0.5,
+        opacity: 1,
         smoothFactor: 1,
         noWrap: false,
     }
     let options1 = {
         color: "red",
-        weight: 0.3,
+        weight: 0.5,
         opacity: 1,
         bubblingMouseEvents: false,
         // smoothFactor: 1,

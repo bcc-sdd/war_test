@@ -42,6 +42,20 @@ async def input_map(request: Request):
     return templates.TemplateResponse("inputMap.html", {"request": request})
 
 
+@app.get("/overview", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("overview.html", {"request": request})
+
+
+
+
+@app.get("/obj_blue", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("objYellow.html", {"request": request})
+
+
+
+
 @app.get("/home", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -55,6 +69,9 @@ app.mount('/', socketapp)
 @sio.event
 async def connect(sid, environ, auth=None):
     print('connected', sid)
+    print(auth)
+
+
 
 
 @sio.event
@@ -86,3 +103,53 @@ async def commitAction(sid, data):
 @sio.event
 async def result(sid, data):
     await sio.emit('continueAction', data)
+
+
+@sio.event
+async def eventCollision(sid, data):
+    print(data)
+    await sio.emit('eventCollision_admin', data, room=global_data["general_sid"])
+
+
+
+@sio.event
+async def eventCollision_dec(sid):
+    await sio.emit('eventCollision_aftermath')
+
+
+@sio.event
+async def eventVisibility_dec(sid):
+    await sio.emit('eventVisibility_aftermath')
+
+
+
+@sio.event
+async def eventCityTarget(sid, data):
+    await sio.emit('eventCityTarget_admin', data, room=global_data["general_sid"])
+
+    
+@sio.event
+async def eventVisibility(sid, data):
+    await sio.emit('eventVisibility_admin', data, room=global_data["general_sid"])
+
+
+# OBJECTIVES
+
+
+@sio.event
+async def objectiveUpdate(sid, data):
+    print(data)
+    await sio.emit('objectiveUpdate_overall', data, room=global_data["objective_display"])
+
+
+# IDENTITIES
+
+@sio.event
+async def setDisplay(sid):
+    global_data["objective_display"] = sid
+
+
+
+@sio.event
+async def setAdmin(sid):
+    global_data["general_sid"] = sid

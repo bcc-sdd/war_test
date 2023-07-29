@@ -1,4 +1,0 @@
----
-- [x] Admin panel (events validation)
-- [ ] Timer / Table /  Announcements
-    - [ ] Team / DEFCON / Amount of Objectives
