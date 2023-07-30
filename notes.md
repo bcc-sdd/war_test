@@ -6,6 +6,11 @@
     - button
     - [ ] grant visibility type
     - button -->
+
+- [ ] Visibility logic for radar(drones)
+- [ ] Persistent assets for bases (delete)
+- [ ] hardcoded speed
+- [ ]
 - [x] bomb casualty numbers
     - slider
 - [ ] PENDING ID for paused movements

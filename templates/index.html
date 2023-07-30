@@ -94,13 +94,13 @@
         </div>
         <div>
           <input class="form-check-input" type="checkbox" value="" id="visual-2" onchange="toggleRoute(event)" checked/>
-          <label class="form-check-label" for="visual-1">
+          <label class="form-check-label" for="visual-2">
             Routes
           </label>
         </div>
         <div>
           <input class="form-check-input" type="checkbox" value="" id="visual-3" onchange="toggleRadars(event)" checked/>
-          <label class="form-check-label" for="visual-1">
+          <label class="form-check-label" for="visual-3">
             Radars
           </label>
         </div>
@@ -178,6 +178,7 @@
 <script src="{{ url_for('static', path='/js/drawFunctions.js') }}" type="module"></script>
 <script src="{{ url_for('static', path='/js/init_map.js') }}" type="module"></script>
 <script src="{{ url_for('static', path='/js/bases.js') }}" type="module"></script>
+<script src="{{ url_for('static', path='/js/collision_detection.js') }}" type="module"></script>
 <script src="{{ url_for('static', path='/js/war.js') }}" type="module"></script>
 
 </html>

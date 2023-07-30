@@ -1,21 +1,14 @@
 var siteUrl = 'http://122.53.86.62:1945/'
 let testUrl = `http://122.53.86.62:1945/Map_Controller/getAssignedAsset`
 
-//tblMovement 
-
-// updatePosition
-//     ingameAssetId
-//     latitude
-
 
 async function pullData(url) {
     const fetchPromise = await fetch(`${siteUrl}${url}`);
-    console.log(fetchPromise)
     return await fetchPromise.json()
 }
 
 
-function pullDataBody(url, data) {
+async function pullDataBody(url, data) {
     const request = new XMLHttpRequest();
     request.open("POST", `${siteUrl}${url}`);
     request.send(data);
@@ -23,12 +16,35 @@ function pullDataBody(url, data) {
         if (request.status != 200) { // analyze HTTP status of the response
           alert(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
         } else { // show the result
-            console.log(request.response)
+            return request.response
         }
       };
 }
 
 
+function makeRequest(url, data) {
+    return new Promise(function (resolve, reject) {
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", `${siteUrl}${url}`);
+        xhr.onload = function () {
+            if (this.status >= 200 && this.status < 300) {
+                resolve(xhr.response);
+            } else {
+                reject({
+                    status: this.status,
+                    statusText: xhr.statusText
+                });
+            }
+        };
+        xhr.onerror = function () {
+            reject({
+                status: this.status,
+                statusText: xhr.statusText
+            });
+        };
+        xhr.send(data);
+    });
+}
 
 async function pushData(url, data) {
     const request = new XMLHttpRequest();
@@ -51,18 +67,17 @@ async function pushData(url, data) {
 }
 
 
-
 export async function pullAssets() {
     let data = await pullData('Map_Controller/getAssignedAsset');
     return data;
 }
 
-
-export function pullAttackIdAssets(attackId) {
+export async function pullAttackIdAssets(attackId) {
+    let url = 'Map_Controller/getAssignedAssetByAttackId'
+    console.log('getting attack id asset', attackId)
     const formData = new FormData();
-    formData.append('attackId', attackId)
-    let data = pullDataBody('Map_Controller/getAssignedAssetByAttackId', formData);
-    console.log(data)
+    formData.append('attackId', attackId.status)
+    let data = await makeRequest(url, formData)
     return data;
 }
 

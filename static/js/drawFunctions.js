@@ -12,7 +12,7 @@ export function computePaths(latlngs0, latlngs1) {
             color: "white",
             weight: routeWeight,
             smoothFactor: 1,
-            dashArray: "15 15",
+            dashArray: "4 4",
             dashSpeed: 30
             //   noWrap: true,
         });
@@ -20,6 +20,8 @@ export function computePaths(latlngs0, latlngs1) {
             color: "white",
             weight: routeWeight,
             smoothFactor: 1,
+            dashArray: "4 4",
+            dashSpeed: 30
             //   noWrap: true,
         });
         var retVal_paths = [new Path(firstpolyline, latlngs0, new_latlng1),

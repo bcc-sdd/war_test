@@ -105,34 +105,6 @@ async def result(sid, data):
     await sio.emit('continueAction', data)
 
 
-@sio.event
-async def eventCollision(sid, data):
-    print(data)
-    await sio.emit('eventCollision_admin', data, room=global_data["general_sid"])
-
-
-
-@sio.event
-async def eventCollision_dec(sid):
-    await sio.emit('eventCollision_aftermath')
-
-
-@sio.event
-async def eventVisibility_dec(sid):
-    await sio.emit('eventVisibility_aftermath')
-
-
-
-@sio.event
-async def eventCityTarget(sid, data):
-    await sio.emit('eventCityTarget_admin', data, room=global_data["general_sid"])
-
-    
-@sio.event
-async def eventVisibility(sid, data):
-    await sio.emit('eventVisibility_admin', data, room=global_data["general_sid"])
-
-
 # OBJECTIVES
 
 

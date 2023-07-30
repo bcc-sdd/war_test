@@ -13,10 +13,8 @@ export default socket;
 //   myModal.show()
 // });
 
-socket.on("approvedMovement", async (attackId)=>{
-  let data = await pullAttackIdAssets()
-  console.log('data')
-})
+let test_data = pullAttackIdAssets("20230730111207507")
+console.log(test_data)
 
 socket.on("connect", () => {
   console.log(socket.id); // x8WIv7-mJelg7on_ALbx
