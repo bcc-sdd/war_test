@@ -6,11 +6,37 @@
     - button
     - [ ] grant visibility type
     - button -->
-
+**Map Logic**
+- [ ] Map should draw attackId instead of assetId
 - [ ] Visibility logic for radar(drones)
 - [ ] Persistent assets for bases (delete)
 - [ ] hardcoded speed
-- [ ]
+- [ ] Base tooltip data: children
+
+```mermaid
+graph LR
+A{{Movement<br/>end}} --> B[Collided with<br/>enemy] --> C(Send socket request<br/>to admin) 
+C --> D{Accepted?} -->|yes| E[Destroy assets]
+D --> |no| F[Movement Arrive]
+Dest(Socket: Destroyed<br/>asset) --> G[MAP_PAINT]
+```
+---
+**Database writes**
+```mermaid
+graph LR
+A{{Accept button <br/> onclick event fnc}}-->B[Aggressor exploded?] -->|yes|D[Map_Controller/updateExplodedAsset]
+B -->|no| E[Map_Controller/updatePosition]
+A --> C[Target exploded]
+C -->|yes|D
+
+```
+- [ ] Movement done
+    - [x] functions done
+    - [ ] database confirmation
+
+- [ ] Explosion
+    - [x] functions done
+    - [ ] database confirmation 
 - [x] bomb casualty numbers
     - slider
 - [ ] PENDING ID for paused movements
@@ -21,15 +47,14 @@
 - [x] Timer / Table /  Announcements
     - [x] Team / DEFCON / Amount of Objectives
     - [x] Socket connections
-    - [ ] Database source > connection
+    - [x] Database source > connection
+
+
 ---
-
-```mermaid
-flowchart TD
-A[SOCKET_ADMIN] --> B[EVENT_MGR]
-D[SOCKET_ACTUAL]
-C(SOCKET) --> A
-C ---> D
-```
-
+**Colllision algo**
+- Load database assets
+- forEach asset
+    - Compute trajectories
+    - Determine if moving or not
+- 
 ---

@@ -1,9 +1,7 @@
 import { pullAttackIdAssets } from "./database.js";
-
-console.log("hello from socketactual");
 // const socket = io("http://localhost:3000/");
-
-const socket = io("122.53.86.62:3000/");
+let socket_url = '122.53.86.62:3000/'
+const socket = io(socket_url);
 // const socket = io("http://localhost:8000/");
 export default socket;
 
@@ -13,11 +11,11 @@ export default socket;
 //   myModal.show()
 // });
 
-let test_data = pullAttackIdAssets("20230730111207507")
-console.log(test_data)
+// let test_data = pullAttackIdAssets("20230730111207507")
+// console.log(test_data)
 
 socket.on("connect", () => {
-  console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+  console.log('Socket connected', socket_url,socket.id); // x8WIv7-mJelg7on_ALbx
 });
 
 
@@ -56,8 +54,3 @@ function loginTeam() {
 
 window.loginTeam = loginTeam;
 
-const socket2 = io("http://122.53.86.62:3000/");
-
-socket2.on("connect", ()=>{
-  console.log('SOCKET 2 CONNECTED')
-})

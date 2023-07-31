@@ -1,31 +1,59 @@
-export function collision_detection(asset, asset_bank, socket) {
-    return 
+export function collision_detection(
+    asset,
+    asset_bank,
+    socket,
+    collisionFnc,
+    movementDoneFnc
+) {
     let collided = []
     asset_bank.get_assets().forEach((otherAsset) => {
         if (collisionCheck(asset, otherAsset)) {
             collided.push(otherAsset)
         };
     })
-    console.log(asset.team)
     if (collided.length > 0) {
-        let name = 'Foxhounds';
-        let agg_ids = [1, 2, 3, 4]
-        let nameTarg1 = 'Russian Subs'
-        let agg_team = 'US';
-        let targ_ids1 = [5, 6, 7]
-        let nameTarg2 = 'ILYUSHIN II-80'
-        let targ_ids2 = [8, 9, 10]
-        let targ_team = 'China'
-        socket.emit("mapEvent", {
-            event: "collision",
-            code: '12312312asd',
-            data: {
-                agg_team: agg_team,
-                aggressor: [{ name: name, ids: agg_ids }],
-                target: [{ name: nameTarg1, ids: targ_ids1 }, { name: nameTarg2, ids: targ_ids2 }],
-                targ_team: targ_team
+        let inputData = {}
+        let data = {};
+        data.agg_team = asset.team;
+        data.targ_team = collided[0].team
+        data.aggressor = {}
+        data.target = {}
+        let DBaggressors = []
+        let DBtargets = []
+        asset.subAssets.forEach((subasset) => {
+            if (data.aggressor.hasOwnProperty(subasset.name)) {
+                data.aggressor[subasset.name].push(subasset.id)
             }
-        });
+            else {
+                data.aggressor[subasset.name] = [subasset.id]
+            }
+            DBaggressors.push(subasset.id)
+        })
+
+        //TODO Target Country
+        collided.forEach((entity)=> {
+            entity.subAssets.forEach((subasset) => {
+                if (data.target.hasOwnProperty(subasset.name)) {
+                    data.target[subasset.name].push(subasset.id)
+                }
+                else {
+                    data.target[subasset.name] = [subasset.id]
+                }
+                DBtargets.push(subasset.id)
+            })
+        })
+        inputData.data = data
+        inputData.code = '123456'
+        inputData.event = 'collision'
+        //SEND DATA
+        // console.log(asset.attackId, DBaggressors, DBtargets)
+        socket.emit("mapEvent", inputData);
+        collisionFnc(asset.attackId, DBaggressors, DBtargets)
+    }
+    else {
+        asset.getsubAssets().forEach(subasset => {
+            movementDoneFnc(subasset.id)
+        })
     }
 
 }
