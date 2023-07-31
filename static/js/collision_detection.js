@@ -3,7 +3,8 @@ export function collision_detection(
     asset_bank,
     socket,
     collisionFnc,
-    movementDoneFnc
+    movementDoneFnc,
+    eventLogger
 ) {
     let collided = []
     asset_bank.get_assets().forEach((otherAsset) => {
@@ -14,18 +15,17 @@ export function collision_detection(
     if (collided.length > 0) {
         let inputData = {}
         let data = {};
-        data.agg_team = asset.team;
-        data.targ_team = collided[0].team
         data.aggressor = {}
         data.target = {}
         let DBaggressors = []
         let DBtargets = []
         asset.subAssets.forEach((subasset) => {
-            if (data.aggressor.hasOwnProperty(subasset.name)) {
-                data.aggressor[subasset.name].push(subasset.id)
+            let name = `${subasset.name}_${subasset.team}`
+            if (data.aggressor.hasOwnProperty(name)) {
+                data.aggressor[name].push(subasset.id)
             }
             else {
-                data.aggressor[subasset.name] = [subasset.id]
+                data.aggressor[name] = [subasset.id]
             }
             DBaggressors.push(subasset.id)
         })
@@ -33,11 +33,12 @@ export function collision_detection(
         //TODO Target Country
         collided.forEach((entity)=> {
             entity.subAssets.forEach((subasset) => {
-                if (data.target.hasOwnProperty(subasset.name)) {
-                    data.target[subasset.name].push(subasset.id)
+                let name = `${subasset.name}_${subasset.team}`
+                if (data.target.hasOwnProperty(name)) {
+                    data.target[name].push(subasset.id)
                 }
                 else {
-                    data.target[subasset.name] = [subasset.id]
+                    data.target[name] = [subasset.id]
                 }
                 DBtargets.push(subasset.id)
             })
@@ -46,13 +47,15 @@ export function collision_detection(
         inputData.code = '123456'
         inputData.event = 'collision'
         //SEND DATA
-        // console.log(asset.attackId, DBaggressors, DBtargets)
-        socket.emit("mapEvent", inputData);
-        collisionFnc(asset.attackId, DBaggressors, DBtargets)
+        console.log(asset.attackId, DBaggressors, DBtargets, inputData)
+        // socket.emit("mapEvent", inputData);
+        // collisionFnc(asset.attackId, DBaggressors, DBtargets)
+        eventLogger.add_event('collision', Date.now())
     }
     else {
         asset.getsubAssets().forEach(subasset => {
-            movementDoneFnc(subasset.id)
+            // movementDoneFnc(subasset.id)
+            // eventLogger.add_event('movement_done', Date.now(), container)
         })
     }
 
@@ -60,7 +63,7 @@ export function collision_detection(
 
 //COLLISION
 function collisionCheck(origin, container) {
-    if (origin.id == container.id) {
+    if (origin.id == container.id || origin.team == container.team) {
         return false
     }
     let distance = origin.asset.getLatLng().distanceTo(container.asset.getLatLng())

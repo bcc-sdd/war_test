@@ -3,18 +3,30 @@ import socket from "./socket_actual.js";
 import init_map from "./init_map.js";
 import { computePaths } from "./drawFunctions.js";
 import { collision_detection } from "./collision_detection.js";
-import { pullAssets, pushCollision, pullAttackIdAssets, pushExplosion, pushMovementDone} from "./database.js";
+import {
+  pullAssets,
+  pullAttackIdAssets,
+  pushCollision,
+  pushMovementDone,
+} from "./database.js";
 import { VisibilityClass } from "./visibility_class.js";
+import {
+  orientAsset,
+  paintAsset,
+  paintCircle,
+  paintExplosion,
+} from "./painter.js";
+import { EventLogger } from "./logger.js";
 
-// setInterval(saveData, 1000)
 var map = null;
 var input_latlngs = [];
 let dummy_id_last = 0;
-let this_team = 'CHINA'
+let this_team = "CHINA";
+var eventLogger = new EventLogger();
 
 class AssetBank {
   constructor() {
-    this.assets = []
+    this.assets = [];
   }
 
   add_asset(asset) {
@@ -22,47 +34,57 @@ class AssetBank {
   }
 
   get_asset(asset_id) {
-    let len = this.assets.length
+    let len = this.assets.length;
     for (let i = 0; i < len; i++) {
       if (this.assets[i].id == asset_id) {
-        return this.assets[i]
+        return this.assets[i];
       }
     }
   }
   get_asset_by_attack_id(attackId) {
-    let len = this.assets.length
+    let len = this.assets.length;
     for (let i = 0; i < len; i++) {
       if (this.assets[i].attackId == attackId) {
-        return this.assets[i]
+        return this.assets[i];
       }
     }
   }
 
   get_assets() {
-    return this.assets
+    return this.assets;
   }
 
   get_last_asset() {
-    return this.assets[this.assets.length - 1]
+    return this.assets[this.assets.length - 1];
   }
 }
 
 var asset_bank = new AssetBank();
 var stationary_asset_bank = new AssetBank();
 
-let visibility_controller = new VisibilityClass(asset_bank, stationary_asset_bank)
-let countryToggle = visibility_controller.countryToggle;
-let bound_countryToggle = countryToggle.bind(countryToggle)
-let toggleRadars = visibility_controller.toggleRadars;
-let bound_toggleRadars = countryToggle.bind(toggleRadars)
-let toggleRoute = visibility_controller.toggleRoute;
-let bound_toggleRoute = countryToggle.bind(toggleRoute)
-let toggleAllAids = visibility_controller.toggleAllAids;
-let bound_toggleAllAids = countryToggle.bind(toggleAllAids)
-window.countryToggle = bound_countryToggle;
-window.toggleAllAids = bound_toggleAllAids;
-window.toggleRoute = bound_toggleRadars;
-window.toggleRadars = bound_toggleRoute;
+let visibility_controller = new VisibilityClass(
+  asset_bank,
+  stationary_asset_bank,
+  map
+);
+
+function visibilityToggler(event, asset, country = null) {
+  switch (asset) {
+    case "country":
+      visibility_controller.countryToggle(event, country);
+      break;
+    case "radars":
+      visibility_controller.toggleRadars(event, country);
+      break;
+    case "routes":
+      visibility_controller.toggleRoute(event, country);
+      break;
+    case "all":
+      visibility_controller.toggleAllAids(event, country);
+      break;
+  }
+}
+window.visibilityToggler = visibilityToggler;
 
 class MapAsset {
   constructor(team, lat = null, lng = null, image, name, id) {
@@ -80,24 +102,23 @@ class MapAsset {
 
 class Base extends MapAsset {
   constructor(team, lat, lng, id, image, name) {
-    super(team, lat, lng, image, name, id)
-    this.has_routeAssets = false;
-    this.has_radarAssets = false;
-    this.children_assets = []
+    super(team, lat, lng, image, name, id);
+    this.children_assets = [];
     // asset_bank.forEach((asset) => this.add_child_asset(asset))
   }
 
-
   add_child_asset(asset) {
-    this.children_assets.push(asset)
+    this.children_assets.push(asset);
     let children_assets_str = this.asset.getTooltip().getContent();
-    children_assets_str += `<div>${asset.image}</div>`
-    this.asset.getTooltip().setContent(children_assets_str)
+    children_assets_str += `<div>${asset.image}</div>`;
+    this.asset.getTooltip().setContent(children_assets_str);
   }
 
   paintOnMap() {
     var greenIcon = L.icon({
-      iconUrl: this.image ? `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}` : "http://122.53.86.62:1945/assets/images/GameAssets.png",
+      iconUrl: this.image
+        ? `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}`
+        : "http://122.53.86.62:1945/assets/images/GameAssets.png",
       // shadowUrl: 'leaf-shadow.png',
       // shadowSize: [50, 64], // size of the shadow
 
@@ -106,8 +127,7 @@ class Base extends MapAsset {
       // shadowAnchor: [4, 62],  // the same for the shadow
       // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
     });
-    // let initCoords = this.getCurrentCoords();
-    let initCoords = new L.LatLng(this.current_lat, this.current_lng)
+    let initCoords = new L.LatLng(this.current_lat, this.current_lng);
     var assetMarker = L.marker(initCoords, {
       icon: greenIcon,
       opacity: 1,
@@ -122,42 +142,14 @@ class Base extends MapAsset {
     </div>`);
     // assetMarker.openTooltip()
     this.asset = assetMarker;
-    this.add_persistentAssets(map, initCoords);
-  }
-
-  add_persistentAssets(map) {
-    //TODO
-    //base has no persistent assets
-    // let coords = this.asset.getLatLng();
-    // var attackAsset = L.circle(coords, {
-    //   color: "red",
-    //   // fillColor: "#212",
-    //   // fillOpacity: 0.5,
-    //   weight: 1,
-    //   radius: 500000,
-    // });
-    // this.attackAsset = attackAsset;
-    // attackAsset.addTo(map);
-
-    // var radarAsset = L.circle(coords, {
-    //   color: "green",
-    //   // fillColor: "#212",
-    //   // fillOpacity: 0.5,
-    //   weight: 0.5,
-    //   radius: 2000000,
-    // });
-    // radarAsset.addTo(map);
-    // this.radarAsset = radarAsset;
   }
 }
 
 class SingleAsset {
-  constructor(
-    data
-  ) {
-    this.id = data.ingameId
-    this.name = data.name
-    this.team = data.country
+  constructor(data) {
+    this.id = data.ingameId;
+    this.name = data.name;
+    this.team = data.country;
   }
 }
 
@@ -175,11 +167,11 @@ class Container extends MapAsset {
     attackId,
     subassets = null,
     data = null,
-    paused_times = null,
+    paused_times = null
   ) {
-    super(team, null, null, image, name, id)
-    this.attackId = attackId
-    this.data = data
+    super(team, null, null, image, name, id);
+    this.attackId = attackId;
+    this.data = data;
     //computed
     this.currentPath = null;
     this.start = null;
@@ -191,8 +183,7 @@ class Container extends MapAsset {
     this.currentPathProgress = null;
     //saved
     this.speed = speed;
-    this.parentId = homebase,
-      this.mode = mode;
+    (this.parentId = homebase), (this.mode = mode);
     this.status = status;
     this.paths = [];
     this.totalFlightTime = 0;
@@ -204,95 +195,80 @@ class Container extends MapAsset {
     this.paused_times = paused_times
       ? paused_times
       : [null, null, null, null, null, null];
-    this.subAssets = subassets ? subassets : []
+    this.subAssets = subassets ? subassets : [];
   }
 
+  setPosition(coordinates) {
+    this.current_lat = coordinates[0];
+    this.current_lng = coordinates[1];
+  }
 
-  //DATA
+  //SUBASSET
   addsubAsset(asset) {
-    this.subAssets.push(asset)
+    this.subAssets.push(asset);
   }
 
   getsubAssets() {
-    return this.subAssets
+    return this.subAssets;
   }
 
   setTooltips(set = false) {
-    let subAssets = {}
+    let subAssets = {};
     this.subAssets.forEach((subasset) => {
       if (subAssets.hasOwnProperty(subasset.name)) {
-        subAssets[subasset.name].push(subasset.id)
+        subAssets[subasset.name].push(subasset.id);
+      } else {
+        subAssets[subasset.name] = [subasset.id];
       }
-      else {
-        subAssets[subasset.name] = [subasset.id]
-      }
-    })
-    let assetString = ``
-    Object.entries(subAssets).forEach(subasset => {
-      assetString += `<div style="border: 1px solid black; margin-bottom: 2px">${subasset[0]}: ${subasset[1].length}</div>`
-    })
+    });
+    let assetString = ``;
+    Object.entries(subAssets).forEach((subasset) => {
+      assetString += `<div style="border: 1px solid black; margin-bottom: 2px">${subasset[0]}: ${subasset[1].length}</div>`;
+    });
     // this.subAssets.forEach(subasset => { subAssets.push(subasset.id) })
+    let dateObj = new Date(this.startTime);
     let htmlString = `
     <div style="font-size: 16px">
       <div style="font-weight: bold">ASSET GROUP</div>
-      <div>Movement status: ${this.movementStatus == 'arrived' ? 'Arrived' : 'Moving'}</div>
+      <div>Movement status: ${
+        this.movementStatus == "arrived" ? "Arrived" : "Moving"
+      }</div>
       <div>Speed: ${this.speed}</div>
       <div>Homebase: ${this.parentId}</div>
       <div>Flighttime: ${this.totalFlightTime.toFixed(2)} secs</div>
-      <div>Start Time: ${this.startTime}</div>
+      <div>Start Time: ${dateObj.getHours()}:${dateObj.getMinutes()}</div>
       <div>Team: ${this.team}</div>
       <div>Attack ID: ${this.attackId}</div>
       <div>Subassets: ${assetString}</div>
     </div>`;
     if (set) {
-      this.asset.bindTooltip(htmlString)
-
+      this.asset.bindTooltip(htmlString);
+    } else {
+      let tooltip = this.asset.getTooltip();
+      tooltip.setContent(htmlString);
     }
-    else {
-      let tooltip = this.asset.getTooltip()
-      tooltip.setContent(htmlString)
-    }
-
   }
 
   explodesubAsset(subassetId) {
+    let exploded = null
     let index = null;
-    let len = this.subAssets.length
-    for (let i=0; i<len; i++) {
+    let len = this.subAssets.length;
+    for (let i = 0; i < len; i++) {
       if (this.subAssets[i].id == subassetId) {
+        exploded = this.subAssets[i]
         index = i;
         break;
       }
     }
     this.subAssets.splice(index, 1);
-    this.setTooltips(false)
+    this.setTooltips(false);
     if (this.subAssets.length == 0) {
-      map.removeLayer(this.asset)
-      this.clear_RouteAssets(map)
-      this.clear_persistentAssets(map)
+      paintExplosion([this.current_lat, this.current_lng], map);
+      map.removeLayer(this.asset);
+      this.clear_RouteAssets();
+      this.clear_persistentAssets();
     }
-
-  }
-
-  containerSave() {
-    let savedPaths = [];
-    this.paths.forEach((path) => {
-      savedPaths.push({ start: path.start, end: path.end });
-    });
-    let saveObj = {
-      currentPath: this.done ? null : this.currentPath.id,
-      //OK
-      startTime: this.startTime,
-      currentPathProgress: null,
-      team: this.team,
-      ismoving: this.ismoving,
-      start: this.start,
-      end: this.end,
-      paused_times: this.paused_times,
-      //TODO
-      paths: savedPaths,
-    };
-    return saveObj;
+    return exploded
   }
 
   addPath(path) {
@@ -302,11 +278,12 @@ class Container extends MapAsset {
 
   getCurrentCoords() {
     if (this.paused_times[3] && !this.paused_times[4]) {
-      return [this.paused_times[1], this.paused_times[2]]
+      return [this.paused_times[1], this.paused_times[2]];
     }
     if (!this.ismoving) {
       return this.end;
     }
+    return [this.current_lat, this.current_lng];
     let path = this.currentPath;
     var progress = path.getProgress();
     var newPosition = midpoint(
@@ -321,96 +298,39 @@ class Container extends MapAsset {
 
   //GFX
   paintOnMap() {
-    var greenIcon = L.icon({
-      iconUrl: this.image ? `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}` : "http://122.53.86.62:1945/assets/images/GameAssets/Rus_Aircraft.png",
-      // shadowUrl: 'leaf-shadow.png',
-      // shadowSize: [50, 64], // size of the shadow
-
-      iconSize: [60, 60], // size of the icon
-      iconAnchor: [30, 30], // point of the icon which will correspond to marker's location
-      // shadowAnchor: [4, 62],  // the same for the shadow
-      // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
-    });
+    // let iconUrl = `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}`
+    let iconUrl = `./static/images/tri${this.team.toLowerCase()}.png`;
     let initCoords = this.getCurrentCoords();
-    var assetMarker = L.marker(initCoords, {
-      icon: greenIcon,
-      opacity: 1,
-      rotationAngle: 0,
-    });
-    assetMarker.addTo(map);
-    // assetMarker.openTooltip()
-    this.asset = assetMarker;
-    this.setTooltips(true)
-    this.add_persistentAssets(map, initCoords);
-    this.orientAsset();
-  }
-
-
-  clear_RouteAssets(map) {
-    this.routeAssets.forEach((asset) => map.removeLayer(asset));
-    this.has_routeAssets = false;
+    this.asset = paintAsset(initCoords, iconUrl, map);
+    this.setTooltips(true);
+    this.add_persistentAssets(initCoords);
+    orientAsset(this);
   }
 
   add_routeAssets() {
-    if (this.has_routeAssets) {
-      return
+    console.log(visibility_controller.showRoutes());
+    if (!visibility_controller.showRoutes()) {
+      return;
     }
     this.paths.forEach((path) => {
       this.routeAssets.push(path.polyline);
       path.polyline.addTo(map);
     });
-
-    var startCircle = L.circle(this.start, {
-      color: "green",
-      // fillColor: "#f03",
-      fillOpacity: 0.5,
-      radius: 5000,
-    });
-    startCircle.addTo(map);
-    var endCircle = L.circle(this.end, {
-      color: "red",
-      // fillColor: "#212",
-      fillOpacity: 0.5,
-      radius: 5000,
-    });
-    endCircle.addTo(map);
+    let startCircle = paintCircle(this.start, map);
+    let endCircle = paintCircle(this.end, map, "red");
     this.routeAssets.push(startCircle, endCircle);
-    this.has_routeAssets = true;
   }
 
-  clear_persistentAssets(map) {
-    try {
-      map.removeLayer(this.radarAsset);
-
-    } catch (error) {
-
-    }
-    try {
-      map.removeLayer(this.attackAsset);
-
-    } catch (error) {
-
-    }
-    this.has_radarAssets = false;
-    this.has_routeAssets = false;
+  clear_RouteAssets() {
+    this.routeAssets.forEach((asset) => map.removeLayer(asset));
   }
 
-  add_persistentAssets(map, coords) {
-    if (this.has_radarAssets) {
-      return
+  add_persistentAssets(coords) {
+    if (!visibility_controller.showRadars()) {
+      return;
     }
-    // this.asset
-    //   .bindPopup(`<p>Team ${this.team}</p><p>Raptor-II</p>`)
-    //   .openPopup();
-    var attackAsset = L.circle(coords, {
-      color: "red",
-      // fillColor: "#212",
-      // fillOpacity: 0.5,
-      weight: 1,
-      radius: 500000,
-    });
+    let attackAsset = paintCircle(coords, map, "red", 500000);
     this.attackAsset = attackAsset;
-    attackAsset.addTo(map);
     //TODO drone only
     // var radarAsset = L.circle(coords, {
     //   color: "green",
@@ -420,61 +340,20 @@ class Container extends MapAsset {
     //   radius: 2000000,
     // });
     // radarAsset.addTo(map);
-    this.has_radarAssets = true;
     // this.radarAsset = radarAsset;
   }
 
-  update_persistentAssets(coords) {
-    if (this.has_radarAssets) {
-      try {
-        this.radarAsset.setLatLng(coords);
-      } catch (error) {
-
-      }
-      this.attackAsset.setLatLng(coords);
-
-    }
+  clear_persistentAssets() {
+    map.removeLayer(this.attackAsset);
+    this.radarAsset ? map.removeLayer(this.radarAsset) : null;
   }
 
-
-  orientAsset() {
-    if (this.currentPath === null) {
+  update_persistentAssets(coords) {
+    if (!visibility_controller.showRadars()) {
       return;
     }
-    let currentPath = this.currentPath;
-    // console.log("REORIENT ME");
-    // if (this.done) {
-    // }
-    // else {
-    //   currentPath = ;
-    // }
-    let headingAngle = computeAngle(
-      currentPath.start.lat,
-      currentPath.start.lng,
-      currentPath.end.lat,
-      currentPath.end.lng
-    );
-    // if (currentPath.length == 2) {
-    //   this.asset.setRotationAngle(
-    //     currentPath.start.lng < currentPath.end.lng ?  headingAngle : 180
-    //   );
-    // } else {
-    //   this.asset.setRotationAngle(
-    //     currentPath.start.lng > currentPath.end.lng ? 180 : headingAngle
-    //   );
-    // }
-    if (currentPath.length == 2) {
-      this.asset.setRotationAngle(
-        currentPath.start.lng < currentPath.end.lng ? 180 : headingAngle
-      );
-    } else {
-      this.asset.setRotationAngle(
-        currentPath.start.lng > currentPath.end.lng
-          ? headingAngle
-          : headingAngle
-      );
-    }
-    this.isReoriented = true;
+    this.radarAsset ? this.radarAsset.setLatLng(coords) : null;
+    this.attackAsset.setLatLng(coords);
   }
 
   //LOGIC for radar
@@ -510,7 +389,7 @@ class Container extends MapAsset {
 
   pause_movement() {
     if (!this.ismoving) {
-      return
+      return;
     }
     this.ismoving = false;
     this.currentPath.paused_time = Date.now() / 1000;
@@ -524,57 +403,53 @@ class Container extends MapAsset {
     //time resume
     this.paused_times[4] = null;
     //progress
-    this.paused_times[5] = this.currentPath.getProgress()
+    this.paused_times[5] = this.currentPath.getProgress();
   }
 
   continue_movement() {
-    let path = this.currentPath
-    let progress = this.paused_times[5]
+    let path = this.currentPath;
+    let progress = this.paused_times[5];
     let currentTime = Date.now() / 1000;
-    let startTime = currentTime - (path.flightTime * progress)
-    path.startFlight(startTime)
+    let startTime = currentTime - path.flightTime * progress;
+    path.startFlight(startTime);
     this.paused_times[4] = Date.now() / 1000;
     this.ismoving = true;
   }
 
   getProgress() {
-    let time_travelled_sofar = 0
-    let pl = this.paths.length
+    let time_travelled_sofar = 0;
+    let pl = this.paths.length;
     if (this.done) {
-      return 1
+      return 1;
     }
     for (let i = 0; i < pl; i++) {
       let path = this.paths[i];
       if (this.currentPath.id != i) {
-        time_travelled_sofar += path.flightTime
-      }
-      else if (this.paused_times[3] && !this.paused_times[4]) {
-        time_travelled_sofar += (this.paused_times[5] * path.flightTime)
+        time_travelled_sofar += path.flightTime;
+      } else if (this.paused_times[3] && !this.paused_times[4]) {
+        time_travelled_sofar += this.paused_times[5] * path.flightTime;
         break;
-      }
-      else {
-        time_travelled_sofar += (path.getProgress() * path.flightTime)
+      } else {
+        time_travelled_sofar += path.getProgress() * path.flightTime;
         break;
       }
     }
-    let progress = time_travelled_sofar / this.totalFlightTime
-    return progress >= 1 ? 1 : progress
+    let progress = time_travelled_sofar / this.totalFlightTime;
+    return progress >= 1 ? 1 : progress;
   }
-
 
   start_movement(database_init) {
     let startTime;
     if (this.paused_times[4] || this.paused_times[3]) {
-      let path = this.paths[this.paused_times[0]]
-      let progress = this.paused_times[5]
+      let path = this.paths[this.paused_times[0]];
+      let progress = this.paused_times[5];
       let currentTime = Date.now() / 1000;
       if (this.paused_times[4]) {
-        startTime = this.paused_times[4] - (path.flightTime * progress)
-      }
-      else {
+        startTime = this.paused_times[4] - path.flightTime * progress;
+      } else {
         // to remove if buggy
-        console.log('BUGGY')
-        startTime = currentTime
+        console.log("BUGGY");
+        startTime = currentTime;
       }
       for (let i = this.paused_times[0]; i < 1000; i++) {
         path = this.paths[i];
@@ -586,11 +461,11 @@ class Container extends MapAsset {
           this.currentPath = path;
           this.currentPath.paused_time = this.paused_times[3];
           this.ismoving = false;
-          return
+          return;
         }
         if (path.endTime >= currentTime) {
           // found current path, break computation
-          this.startWaypoint(path)
+          this.startWaypoint(path);
           return;
         }
         startTime += path.flightTime;
@@ -598,9 +473,8 @@ class Container extends MapAsset {
       //iterated through all paths
       //meaning movement is done
       this.completedAllWaypoints();
-      return
-    }
-    else if (this.startTime === null || this.startTime === undefined) {
+      return;
+    } else if (this.startTime === null || this.startTime === undefined) {
       /// this is created from input rather than reading data
       startTime = Date.now() / 1000;
       this.startTime = startTime;
@@ -616,7 +490,7 @@ class Container extends MapAsset {
       path.startFlight(startTime);
       if (path.endTime >= currentTime) {
         // found current path, break computation
-        this.startWaypoint(path)
+        this.startWaypoint(path);
         return;
       }
       startTime += path.flightTime;
@@ -632,21 +506,28 @@ class Container extends MapAsset {
     this.done = false;
   }
 
+  //REACHDEST
+  //database_init is to disable collision detection during initial map draw
   completedAllWaypoints(database_init) {
-
     this.currentPath = null;
     this.ismoving = false;
-    this.clear_RouteAssets(map)
+    this.clear_RouteAssets();
     this.paths.length = 0;
     this.done = true;
-    let len = this.paused_times.length - 1
+    let len = this.paused_times.length - 1;
     for (let i = 0; i <= len; i++) {
       this.paused_times[i] = null;
     }
-    // socket.emit("mapEvent", { event: "attack_target_reach", data: { id: this.id } })
-    // pushLocation(this.id, this.asset.getLatLng().lat, this.asset.getLatLng().lng)
+    //WRITE DATABASE
     if (!database_init) {
-      collision_detection(this, asset_bank, socket, pushCollision, pushMovementDone)
+      collision_detection(
+        this,
+        asset_bank,
+        socket,
+        pushCollision,
+        pushMovementDone,
+        eventLogger
+      );
     }
   }
 
@@ -671,13 +552,6 @@ class Container extends MapAsset {
     });
     // get total flight from start to end
     this.totalFlightTime = totalFlightTime;
-    //ADD TOOLTIP
-    // let tooltip = L.tooltip()
-    //   .setLatLng(this.end)
-    //   .setContent(`Remain: ${totalFlightTime.toFixed(2)}`)
-    //   .addTo(map);
-    // tooltip.openOn(map);
-    // this.routeAssets.push(tooltip);
     this.start_movement(database_init);
     if (this.ismoving) {
       this.add_routeAssets();
@@ -687,92 +561,88 @@ class Container extends MapAsset {
           2
         )}, ${this.end.lng.toFixed(2)}}.`
       );
-    }
-    else if (this.paused_times[1]) {
-      console.log('here')
+    } else if (this.paused_times[1]) {
+      console.log("here");
       this.add_routeAssets();
     }
   }
 }
 
-class MovingContainer extends Container {
-  constructor() {
-
-  }
-}
-
 function createAssetFromDatabase(asset, subassets = null) {
   if (!asset.attackId) {
-    console.log('NO ATTACK ID')
-    return
+    console.log("NO ATTACK ID");
+    return;
   }
-  let paths = []
+  let paths = [];
   asset.path.forEach((path) => {
-    let [lat, lng] = path.coordinates.split(",")
-    paths.push(new L.LatLng(lat, lng))
-  })
+    let [lat, lng] = path.coordinates.split(",");
+    paths.push(new L.LatLng(lat, lng));
+  });
   let createdAsset = createAssets(
-    paths,//       input_latlngs,
-    asset.country,//    team,
-    asset.status,//       status,
-    asset.mode,//         mode,
-    asset.movementStatus,//movementStatus
-    asset.timeDeparted,// asset.startTime,
+    paths, //       input_latlngs,
+    asset.country, //    team,
+    asset.status, //       status,
+    asset.mode, //         mode,
+    asset.movementStatus, //movementStatus
+    asset.timeDeparted, // asset.startTime,
     asset.speed,
     asset.parentId,
     asset.ingameId,
     asset.image,
     asset.name,
-    typeof asset.attackId == 'string'? parseInt(asset.attackId): asset.attackId,
+    typeof asset.attackId == "string"
+      ? parseInt(asset.attackId)
+      : asset.attackId,
     subassets,
     true
-  )
-  return createdAsset
+  );
+  return createdAsset;
 }
 
 //DATA PULL
 async function databaseInit() {
-  console.log('Database init')
+  console.log("Database init");
   // let assets = await pullAssets();
   // console.log(assets)
-  // store('dbvalues', assets);  
-  let assets = store.get('dbvalues');
-  let bases = []
-  let missionAssets = {}
+  // store('dbvalues', assets);
+  let assets = store.get("dbvalues");
+  let missionAssets = {};
   assets.forEach((asset) => {
-    if (asset.attackId == "" || asset.speed == 0 || asset.speed == '0') {
-      let base = createBase(asset.country, asset.startLat, asset.startLong, asset.assetId, asset.image, asset.name)
-    }
-    else {
+    if (asset.attackId == "" || asset.speed == 0 || asset.speed == "0") {
+      let base = createBase(
+        asset.country,
+        asset.startLat,
+        asset.startLong,
+        asset.assetId,
+        asset.image,
+        asset.name
+      );
+    } else {
       if (missionAssets.hasOwnProperty(asset.attackId)) {
-        missionAssets[asset.attackId].push(asset)
-      }
-      else {
-        missionAssets[asset.attackId] = [asset]
+        missionAssets[asset.attackId].push(asset);
+      } else {
+        missionAssets[asset.attackId] = [asset];
       }
     }
-  })
-  //start single asset
-  Object.values(missionAssets).forEach(assets => {
-    let subassets = []
+  });
+  //create asset container
+  Object.values(missionAssets).forEach((assets) => {
+    let subassets = [];
     assets.forEach((asset) => {
-      let newAsset = new SingleAsset(asset)
-      subassets.push(newAsset)
-    })
-    var newContainer = createAssetFromDatabase(assets[0], subassets)
-    console.log(newContainer)
-  })
-  return
-  // assets.forEach((asset) => {
-  //   if (asset.attackId == "" || asset.speed == 0 || asset.speed == '0') {
-  //     let base = createBase(asset.country, asset.startLat, asset.startLong, asset.assetId, asset.image, asset.name)
-  //   }
-  //   else {
-  //     createAssetFromDatabase(asset)
-  //   }
-  // })
-
+      let newAsset = new SingleAsset(asset);
+      subassets.push(newAsset);
+    });
+    var newContainer = createAssetFromDatabase(assets[0], subassets);
+    console.log(newContainer);
+  });
+  return;
 }
+
+// window.addEventListener("load", (e) => {
+//   let ele = document.getElementById("exampleModal")
+//   let myModal = new bootstrap.Modal(ele);
+//   myModal.show()
+// });
 
 document.addEventListener("DOMContentLoaded", async function () {
   function updateCoords(e) {
@@ -789,50 +659,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   map = init_map();
   map.on("mousemove", updateCoords);
   map.on("click", x);
-  await databaseInit()
-
-  //LOAD DATABASE
-
-
-  //  CREATE TEST BASE
-  // let newBase = new Base(paintBase(map), 2);
-  // newBase.add_persistentAssets(map);
-  // stationaryAssetBank.push(newBase);
-
-  // LOAD LOCAL STORAGE DATA
-  // let bankedAssets = store.get("data");
-  // bankedAssets.forEach((asset) => {
-  //   let team = asset.team;
-  //   let input_latlngs = [];
-  //   let initPoint = asset.paths[0];
-  //   if (asset.paths.length >= 1) {
-  //     input_latlngs.push(
-  //       new L.LatLng(initPoint.start.lat, initPoint.start.lng)
-  //     );
-  //     asset.paths.forEach((latlngString) => {
-  //       let newPoint = new L.LatLng(latlngString.end.lat, latlngString.end.lng);
-  //       input_latlngs.push(newPoint);
-  //     });
-  //   }
-  //   let paused_times = asset.paused_times;
-  //   createAssets(
-  //     input_latlngs,
-  //     team,
-  //     null,
-  //     asset.startTime,
-  //     asset.start,
-  //     asset.end,
-  //     paused_times
-  //   );
-  // });
+  visibility_controller.map = map;
+  await databaseInit();
 });
 
 function createBase(team, lat, lng, id, image, name) {
-  let base = new Base(team, lat, lng, id, image, name)
-  stationary_asset_bank.add_asset(base)
-  base.paintOnMap()
-  console.log('BASE CREATED')
-  return base
+  let base = new Base(team, lat, lng, id, image, name);
+  stationary_asset_bank.add_asset(base);
+  base.paintOnMap();
+  console.log("BASE CREATED");
+  return base;
 }
 
 function createAssets(
@@ -850,11 +686,11 @@ function createAssets(
   attack_id,
   subassets,
   database_init = false,
-  paused_times = null,
+  paused_times = null
 ) {
   if (lat_lngs_array.length == 1) {
-    console.log('Insufficient amount of waypoints. Supplied: 1')
-    return
+    console.log("Insufficient amount of waypoints. Supplied: 1");
+    return;
   }
   let container;
   container = new Container(
@@ -871,7 +707,7 @@ function createAssets(
     subassets
     // paused_times,
     // data
-  )
+  );
   container.startTime = startTime;
   container.input_latlngs = lat_lngs_array;
   // has paths
@@ -889,24 +725,30 @@ function createAssets(
       paths.forEach((path) => {
         container.addPath(path);
       });
-
     }
-  }
-  else {
+  } else {
     container.done = true;
   }
   container.init_movement(database_init);
-  asset_bank.add_asset(container)
+  asset_bank.add_asset(container);
+  let path = container.currentPath;
+  var progress = path.getProgress();
+  var newPosition = midpoint(
+    path.start.lat,
+    path.start.lng,
+    path.end.lat,
+    path.end.lng,
+    progress
+  );
+  container.setPosition(newPosition);
   container.paintOnMap();
-  console.log('ASSET CREATED')
+  console.log("ASSET CREATED");
   // stationary_asset_bank.get_asset(parentId).add_child_asset(container)
   return container;
 }
 
 function updateAssets() {
-
   asset_bank.get_assets().forEach((assetContainer) => {
-    var assetMarker = assetContainer.asset;
     if (!assetContainer.ismoving) {
       return;
     }
@@ -915,11 +757,11 @@ function updateAssets() {
     // reached destination
     if (progress >= 1) {
       if (assetContainer.end_movement()) {
-        assetContainer.clear_RouteAssets(map);
+        assetContainer.clear_RouteAssets();
       }
     } else {
       if (!assetContainer.isReoriented) {
-        assetContainer.orientAsset();
+        orientAsset(assetContainer);
       }
       // console.log(`${progress * 100}%`, progress, path.end.lat, assetContainer.end.lng)
       var newPosition = midpoint(
@@ -929,8 +771,9 @@ function updateAssets() {
         path.end.lng,
         progress
       );
+      assetContainer.setPosition(newPosition);
       assetContainer.update_persistentAssets(newPosition);
-      assetMarker.setLatLng(newPosition);
+      assetContainer.asset.setLatLng(newPosition);
       // let ele = document.querySelector(`[aria-describedby='leaflet-tooltip-${assetContainer.asset._leaflet_id}']`)
     }
   });
@@ -938,218 +781,157 @@ function updateAssets() {
 
 setInterval(updateAssets, 100);
 
-
-function set_AssetsOpaque(val, base, container) {
-  if (opaque_test_done) {
-    return
-  }
-  if (container.movementStatus == 'COLLISION') {
-    return
-  }
-  val = val ? 0.2 : 0;
-  var val2 = val ? 1 : 0;
-  base.asset.setOpacity(val2);
-  base.radarAsset.setStyle({ fillOpacity: val, weight: val2 });
-  base.attackAsset.setStyle({ fillOpacity: val, weight: val2 });
-  if (val) {
-    console.log(container)
-    container.pause_movement();
-    container.movementStatus = 'COLLISION'
-    socket.emit("eventVisibility", ['Manila', 'Flying Tanod', 'USA', 'M1 Abrams']);
-  }
-}
-
-
-//TODO VISIBILITY
-// function visibilityCheck() {
-//   return 
-//   asset_bank.get_assets().forEach((assetContainer) => {
-//     asset_bank.get_assets().forEach((otherAssetContainer) => {
-//       if (assetContainer.id == otherAssetContainer.id) {
-//         return
-//       }
-//       collisionCheck(assetContainer, otherAssetContainer);
-//     })
-//     return
-//     stationaryAssetBank.forEach((otherAssetContainer) => {
-//       // if (otherAssetContainer.team == team) {
-//       //   return;
-//       // }
-//       set_AssetsOpaque(
-//         assetContainer.can_detectContainer(otherAssetContainer),
-//         otherAssetContainer, assetContainer
-//       );
-//     });
-//   });
-// }
-
-// setInterval(visibilityCheck, 500);
-
-
 //HELPERS
 function midpoint(lat1, long1, lat2, long2, per) {
   return [lat1 + (lat2 - lat1) * per, long1 + (long2 - long1) * per];
-}
-
-function computeAngle(aLat, aLng, bLat, bLng) {
-  return (Math.atan2(bLng - aLng, bLat - aLat) * 180) / Math.PI - 90;
-}
-
-
-//
-// DEBUGGING
-//
-
-function debugChangeTeam() {
-  team = document.getElementById("debug-select-team").value;
-}
-
-window.debugChangeTeam = debugChangeTeam;
-
-
-function spawnGoons(add_path = false) {
-  for (let i = 0; i < 100; i++) {
-    let lat_lngs_array = [];
-    var latBounds = [-50, 50];
-    var lngBounds = [-180, 180];
-    var lat = Math.random() * (latBounds[1] - latBounds[0] + 1) + latBounds[0];
-    var lng = Math.random() * (lngBounds[1] - lngBounds[0] + 1) + lngBounds[0];
-    var latlng = L.latLng(lat, lng);
-    if (add_path) {
-      for (let i = 0; i < 4; i++) {
-        var lat =
-          Math.random() * (latBounds[1] - latBounds[0] + 1) + latBounds[0];
-        var lng =
-          Math.random() * (lngBounds[1] - lngBounds[0] + 1) + lngBounds[0];
-        var latlng = L.latLng(lat, lng);
-        lat_lngs_array.push(latlng);
-      }
-    }
-    let team = Math.ceil(Math.random() * 5);
-  }
 }
 
 function targetedAttack() {
   socket.emit("mapEvent", {
     event: "targeted_attack",
     data: {
-      agg_team: 'US',
-      aggressor: [{ name: 'Raptor', ids: [1, 2, 3, 4, 5] }],
-      target: [{ name: 'Beijing', ids: [12] }],
-      targ_team: 'China'
-    }
+      agg_team: "US",
+      aggressor: [{ name: "Raptor", ids: [1, 2, 3, 4, 5] }],
+      target: [{ name: "Beijing", ids: [12] }],
+      targ_team: "China",
+    },
   });
 }
 
-
 function skirmishAttack() {
-  let attackId = 1
-  let aggressors = [1, 2, 3, 4, 5]
-  let targets = [6, 7, 8, 9, 10]
-  pushCollision(attackId, aggressors, targets)
+  let attackId = 1;
+  let aggressors = [1, 2, 3, 4, 5];
+  let targets = [6, 7, 8, 9, 10];
+  pushCollision(attackId, aggressors, targets);
   socket.emit("mapEvent", {
     event: "collision",
-    code: '123123123',
+    code: "123123123",
     data: {
-      agg_team: 'India',
-      aggressor: { 'Raptor': [1, 2, 3, 4, 5] },
-      target: { 'Plane': [12, 1, 2, 3, 5], 'Tank': [12, 1, 2, 3, 5] },
-      targ_team: 'Russia'
-    }
+      agg_team: "India",
+      aggressor: { Raptor: [1, 2, 3, 4, 5] },
+      target: { Plane: [12, 1, 2, 3, 5], Tank: [12, 1, 2, 3, 5] },
+      targ_team: "Russia",
+    },
   });
 }
 
 function createDummy() {
-  let subasset1 = new SingleAsset({ ingameId: 229, name: 'Dummy', country: 'CHINA' })
-  let subasset2 = new SingleAsset({ ingameId: 230, name: 'Dummy', country: 'CHINA' })
+  let country = document.getElementById('debug-flag-change').value
+  let name = document.getElementById('debug-asset-change').value
+  let subasset1 = new SingleAsset({
+    ingameId: 229,
+    name: name,
+    country: country,
+  });
+  let subasset2 = new SingleAsset({
+    ingameId: 230,
+    name: name,
+    country: country,
+  });
 
-  createAssets(input_latlngs, "CHINA", null, null, null, null, null, 179, 69420 + dummy_id_last, null, null, 12345, [subasset1, subasset2]);
-  dummy_id_last += 1
+  createAssets(
+    input_latlngs,
+    country,
+    null,
+    null,
+    null,
+    null,
+    null,
+    179,
+    69420 + dummy_id_last,
+    null,
+    null,
+    12345,
+    [subasset1, subasset2]
+  );
+  dummy_id_last += 1;
 }
 
 function dummyExplosion() {
-  let x = BigInt(12345)
-  let container = asset_bank.get_asset_by_attack_id(x)
-  container.explodesubAsset(229)
-  container.explodesubAsset(230)
+  let x = BigInt(12345);
+  let container = asset_bank.get_asset_by_attack_id(x);
+  container.explodesubAsset(229);
+  container.explodesubAsset(230);
+}
 
+function kaboom() {
+  paintExplosion([0, 0], map);
 }
 
 //DEBUG
 document.addEventListener("keyup", (event) => {
   switch (event.code) {
-    case "KeyW": socket.emit("eventCityTarget", ['Manila', 'Battle Jeeps', 'USA', 'Population']); break;
-    case "KeyQ": socket.emit("eventCollision", ['Manila', 'Battle Trikes', 'USA', 'Sherman Tank']); break;
-    case "KeyE": socket.emit("eventVisibility", ['Manila', 'Flying Tanod', 'USA', 'M1 Abrams']); break;
-    case "KeyD": dumpContainers(); break;
-    case "KeyX": targetedAttack(); break;
-    case "KeyY": skirmishAttack(); break;
-    case "KeyL": pullAttackIdAssets('20230728111959330'); break;
-    case "KeyR": pushExplosion(); break;
-    case "KeyM": dummyExplosion(); break;
+    case "KeyQ":
+      kaboom();
+      break;
+    case "KeyD":
+      dumpContainers();
+      break;
+    case "KeyX":
+      targetedAttack();
+      break;
+    case "KeyY":
+      skirmishAttack();
+      break;
+    case "KeyL":
+      pullAttackIdAssets("20230728111959330");
+      break;
+    case "KeyM":
+      dummyExplosion();
+      break;
     case "Enter": {
       createDummy();
       input_latlngs.length = 0;
       break;
     }
-    case "KeyS": spawnGoons(); break;
     case "Space": {
       let testPlane = asset_bank.get_last_asset();
-      console.log(testPlane)
+      if (testPlane.paths.length == 0) {
+        return;
+      }
       if (testPlane.ismoving) {
         console.log("PAUSE");
         testPlane.pause_movement();
       } else {
         testPlane.continue_movement();
-
       }
       break;
     }
-
   }
 });
 
-
-//DEBUG LOCAL STORAGE SAVE
-function dumpContainers() {
-  let dump = [];
-  asset_bank.get_assets().forEach((asset) => {
-    dump.push(asset.containerSave());
-  });
-  store.remove("data");
-  store("data", dump);
-  console.log("DUMPED", dump);
-}
-
 //SOCKETS
-
 
 socket.on("approveMovement", async (data) => {
   //query assets using attack data
-  console.log(data)
-  let new_data = await pullAttackIdAssets(data)
-  new_data = JSON.parse(new_data)
-  let subassets = []
+  console.log(data);
+  let new_data = await pullAttackIdAssets(data);
+  new_data = JSON.parse(new_data);
+  let subassets = [];
   new_data.forEach((subdata) => {
-    let newAsset = new SingleAsset(subdata)
-    subassets.push(newAsset)
-  })
-  createAssetFromDatabase(new_data[0], subassets)
-})
+    let newAsset = new SingleAsset(subdata);
+    subassets.push(newAsset);
+  });
+  createAssetFromDatabase(new_data[0], subassets);
+});
 
 socket.on("destroyedAsset", (data) => {
-  let asset_containers = asset_bank.get_assets()
-  let len1 = asset_containers.length
-  for (let i=0; i<len1; i++) {
-    var container = asset_containers[i]
-    var subassets = container.getsubAssets()
-    let len2 = subassets.length
-    for (let j=0; j<len2; j++) {
+  let asset_containers = asset_bank.get_assets();
+  let len1 = asset_containers.length;
+  for (let i = 0; i < len1; i++) {
+    var container = asset_containers[i];
+    var subassets = container.getsubAssets();
+    let len2 = subassets.length;
+    for (let j = 0; j < len2; j++) {
       if (subassets[j].id == data) {
-        console.log(container, data)
-        container.explodesubAsset(data)
+        console.log(container, data);
+        container.explodesubAsset(data);
         return;
       }
     }
   }
+});
+
+socket.on("destroyedAssets", (data) => {
+  eventLogger.add_event('explosion', Date.now(), `Asset `)
 })

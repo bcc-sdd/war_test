@@ -9,7 +9,6 @@ async function pullData(url) {
 
 
 
-
 function pullDataBody(url, data) {
     return new Promise(function (resolve, reject) {
         let xhr = new XMLHttpRequest();
@@ -54,12 +53,14 @@ async function pushData(url, data) {
 
 }
 
-
+//used when loading map assets
 export async function pullAssets() {
     let data = await pullData('Map_Controller/getAssignedAsset');
     return data;
 }
 
+//used when listening to socket event movementApproved
+//which sends an attack id
 export async function pullAttackIdAssets(attackId) {
     let url = 'Map_Controller/getAssignedAssetByAttackId'
     console.log('getting attack id asset', attackId)
@@ -69,7 +70,7 @@ export async function pullAttackIdAssets(attackId) {
     return data;
 }
 
-
+//triggered when collision is detected by collision function
 export async function pushCollision(attackId, aggressorIds, targetIds) {
     let aggressors = ''
     let targets = ''
@@ -84,7 +85,7 @@ export async function pushCollision(attackId, aggressorIds, targetIds) {
     pushData(endpoint, formData)
 }
 
-
+//triggered by admin collision page
 export function pushExplosion(collisionCode, id) {
     let endpoint = 'Map_Controller/updateExplodedAsset'
     collisionCode = '64c6272d4808f'
@@ -95,8 +96,7 @@ export function pushExplosion(collisionCode, id) {
     pushData(endpoint, formData)
 }
 
-
-
+//triggered by movement
 export function pushMovementDone(assetId) {
     const formData = new FormData();
     formData.append('ingameAssetId', assetId);

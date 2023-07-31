@@ -30,12 +30,12 @@
       <div class="dropdown-menu" style="padding: 4px">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="filter-USA" checked
-            onchange="countryToggle(event, 1)" />
+            onchange="visibilityToggler(event, 'country', 'US')" />
           <label class="form-check-label" for="filter-USA">USA</label>
         </div>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="filter-China" checked
-            onchange="countryToggle(event, 2)" />
+            onchange="visibilityToggler(event, 'country', 'CHINA')" />
           <label class="form-check-label" for="filter-China">China</label>
         </div>
       </div>
@@ -87,19 +87,19 @@
 
       <div class="dropdown-menu" style="padding: 4px">
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="toggleAllAids(event)" checked/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-1" onchange="visibilityToggler(event, 'all')" checked/>
           <label class="form-check-label" for="visual-1">
             All
           </label>
         </div>
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-2" onchange="toggleRoute(event)" checked/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-2" onchange="visibilityToggler(event, 'routes')" checked/>
           <label class="form-check-label" for="visual-2">
             Routes
           </label>
         </div>
         <div>
-          <input class="form-check-input" type="checkbox" value="" id="visual-3" onchange="toggleRadars(event)" checked/>
+          <input class="form-check-input" type="checkbox" value="" id="visual-3" onchange="visibilityToggler(event, 'radars')" checked/>
           <label class="form-check-label" for="visual-3">
             Radars
           </label>
@@ -119,7 +119,16 @@
       aria-controls="offcanvasScrolling">
       Logs
     </button>
-
+    <select class="form-select" aria-label="multiple select example" id="debug-flag-change" style="width: 10vw">
+      <option selected value="CHINA">China</option>
+      <option value="US">US</option>
+      <option value="RUSSIA">Russia</option>
+      <option value="INDIA">India</option>
+    </select>
+    <select class="form-select" aria-label="multiple select example" id="debug-asset-change" style="width: 10vw">
+      <option selected value="Dragon">Dragon</option>
+      <option value="Eagle">Eagle</option>
+    </select>
   </nav>
   <div class="offcanvas offcanvas-end chat-container" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
     id="chatLog" aria-labelledby="chatLog">
@@ -158,6 +167,7 @@
   </div>
   <!-- <div id="map" style="height: 100vh; filter: invert(1) contrast(1.2);"></div> -->
 
+  
   <div id="map" style="height: 100vh;"></div>
   {{chatMacro.modalMacro()}}
   {{chatMacro.debugMacro()}}
@@ -170,9 +180,9 @@
 <script src="{{ url_for('static', path='/js/leaflet_rotation.js') }}"></script>
 <script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
 <script src="{{ url_for('static', path='/js/pulsing_icon.js') }}"></script>
-
+<script src="{{ url_for('static', path='/js/logger.js')}}" type="module"></script>
 <script src="{{ url_for('static', path='/js/database.js') }}" type="module"></script>
-
+<script src="{{ url_for('static', path='/js/painter.js') }}" type="module"></script>
 <script src="{{ url_for('static', path='/js/visibility_class.js') }}" type="module"></script>
 <script src="{{ url_for('static', path='/js/socket_actual.js') }}" type="module"></script>
 <script src="{{ url_for('static', path='/js/class_path.js') }}" type="module"></script>
