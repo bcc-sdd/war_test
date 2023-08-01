@@ -16,27 +16,27 @@ export class VisibilityClass {
         }
     }
 
-    showRoutes() {
-        return this.show_routes
     
-    }
-
-    showRadars() {
-        return this.show_radars
-    }
-
-    showDangerCircles() {
-        return this.show_danger_circle
-    }
-
     asset_is_visible(asset) {
-        console.log(asset.team)
         return this.show_countries[asset.team]
     }
 
+    showRoutes(asset) {
+        return this.show_routes && this.asset_is_visible(asset)
+    
+    }
+
+    showRadars(asset) {
+        return this.show_radars && this.asset_is_visible(asset)
+    }
+
+    showDangerCircles(asset) {
+        return this.show_danger_circle && this.asset_is_visible(asset)
+    }
+
+
     set_AssetsOpaque(val, container) {
         if (val) {
-            console.log(container.asset)
             container.asset.addTo(this.map)
         }
         else {
@@ -53,6 +53,15 @@ export class VisibilityClass {
         var truthiness = event.srcElement.checked ? true : false;
         this.assets.get_assets().forEach((asset) => {
             if (asset.team == country) {
+                if (!truthiness && asset.isHidden) {
+                    return
+                }
+                if (!truthiness && !asset.isHidden) {
+                    asset.isHidden = true
+                }
+                else if (truthiness && asset.isHidden) {
+                    asset.isHidden = false
+                }
                 this.set_AssetsOpaque(truthiness, asset);
                 this.toggle_RADARS(asset, truthiness)
                 this.toggle_ROUTE(asset, truthiness)
@@ -65,7 +74,7 @@ export class VisibilityClass {
             asset.add_routeAssets()
         }
         else {
-            asset.clear_RouteAssets(map);
+            asset.clear_RouteAssets();
         }
     }
 
@@ -74,20 +83,10 @@ export class VisibilityClass {
             asset.add_persistentAssets(asset.asset.getLatLng())
         }
         else {
-            asset.clear_persistentAssets(map)
+            asset.clear_persistentAssets()
         }
     }
 
-    toggleAllAids(event) {
-        var truthiness = event.srcElement.checked ? true : false;
-        this.show_danger_circle = truthiness
-        this.show_radars = truthiness
-        this.show_routes = truthiness
-        this.assets.get_assets().forEach((asset) => {
-            this.toggle_ROUTE(asset, truthiness)
-            this.toggle_RADARS(asset, truthiness)
-        })
-    }
 
     toggleRoute(event) {
         var truthiness = event.srcElement.checked ? true : false;

@@ -61,9 +61,12 @@ C -->|yes|D
 **base**
 - [x] Determine if base is population or military base
 - [x] Add record for children
-- [ ] Tooltip
-- [ ] Visibility
-- [ ] Base attack
-- [ ] attack id
-
+- [x] Tooltip
+- [x] Visibility
+- [x] Base attack
+    - [ ] test
+- [x] Remove child on new mission, destroy if empty
+- [ ] collision code -> database first then socket then admin
+- [ ] Add newly created asset to its motherbase subassets
+- [ ] refactor admin overview
 ---

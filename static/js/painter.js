@@ -8,7 +8,7 @@ export function paintExplosion(coords, map) {
   setTimeout(clearExplosion, 5000, asset, map);
 }
 
-export function paintAsset(coords, iconUrl, map) {
+export function paintAsset(coords, iconUrl, map, hidden=false) {
   var icon = L.icon({
     iconUrl: iconUrl,
     iconSize: [30, 30], // size of the icon
@@ -20,7 +20,9 @@ export function paintAsset(coords, iconUrl, map) {
     opacity: 1,
     rotationAngle: 0,
   });
-  assetMarker.addTo(map);
+  if (!hidden) {
+    assetMarker.addTo(map);
+  }
   return assetMarker;
 }
 
