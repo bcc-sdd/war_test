@@ -1,9 +1,8 @@
 import { pullAttackIdAssets } from "./database.js";
 // const socket = io("http://localhost:3000/");
 let socket_url = '122.53.86.62:3000/'
-const socket = io(socket_url);
+export const socket = io(socket_url);
 // const socket = io("http://localhost:8000/");
-export default socket;
 
 // window.addEventListener("load", (e) => {
 //   let ele = document.getElementById("exampleModal")
@@ -15,7 +14,7 @@ export default socket;
 // console.log(test_data)
 
 socket.on("connect", () => {
-  console.log('Socket connected', socket_url,socket.id); // x8WIv7-mJelg7on_ALbx
+  console.log('Socket connected', socket_url, socket.id); // x8WIv7-mJelg7on_ALbx
 });
 
 
@@ -54,3 +53,51 @@ function loginTeam() {
 
 window.loginTeam = loginTeam;
 
+export function collisionTransmit(aggressor, target, code) {
+  //data 
+  //int collisionCode
+  //event 'collision'
+  let inputData = {}
+  let data = {};
+  data.aggressor = {}
+  data.target = {}
+  aggressor.subAssets.forEach((subasset) => {
+    let name = `${subasset.name}_${subasset.team}`
+    if (data.aggressor.hasOwnProperty(name)) {
+      data.aggressor[name].push(subasset.id)
+    }
+    else {
+      data.aggressor[name] = [subasset.id]
+    }
+  })
+  target.forEach((entity) => {
+    entity.subAssets.forEach((subasset) => {
+      let name = `${subasset.name}_${subasset.team}`
+      if (data.target.hasOwnProperty(name)) {
+        data.target[name].push(subasset.id)
+      }
+      else {
+        data.target[name] = [subasset.id]
+      }
+    })
+  })
+  inputData.data = data
+  inputData.code = code
+  inputData.event = 'collision'
+  console.log(inputData)
+  // socket.emit("mapEvent", inputData);
+  // console.log('transmitted collision to admin')
+}
+
+export function baseAttackTransmit(data, code) {
+  let inputData = {}
+  inputData.event = 'base_attack'
+  socket.emit("mapEvent", inputData);
+}
+
+
+export function cityAttackTransmit(data, code) {
+  let inputData = {}
+  inputData.event = 'city_attack'
+  socket.emit("mapEvent", inputData);
+}

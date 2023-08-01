@@ -1,5 +1,5 @@
 // import paintBase from "./bases.js";
-import socket from "./socket_actual.js";
+import { socket, collisionTransmit } from "./socket_actual.js";
 import init_map from "./init_map.js";
 import { computePaths } from "./drawFunctions.js";
 import { collision_detection } from "./collision_detection.js";
@@ -20,26 +20,34 @@ import { EventLogger } from "./logger.js";
 
 var map = null;
 var input_latlngs = [];
-let dummy_id_last = 0;
 let this_team = "CHINA";
 var eventLogger = new EventLogger();
 
 class AssetBank {
   constructor() {
     this.assets = [];
+    this.dummy_id_last = 84;
+    this.asset_dict = {}
+  }
+
+  get_dummy_id() {
+    this.dummy_id_last += 1
+    return this.dummy_id_last - 1;
   }
 
   add_asset(asset) {
     this.assets.push(asset);
+    this.asset_dict[asset.id] = asset
   }
 
   get_asset(asset_id) {
-    let len = this.assets.length;
-    for (let i = 0; i < len; i++) {
-      if (this.assets[i].id == asset_id) {
-        return this.assets[i];
-      }
-    }
+    return asset_id?.[asset_id]
+    // let len = this.assets.length;
+    // for (let i = 0; i < len; i++) {
+    //   if (this.assets[i].id == asset_id) {
+    //     return this.assets[i];
+    //   }
+    // }
   }
   get_asset_by_attack_id(attackId) {
     let len = this.assets.length;
@@ -97,21 +105,94 @@ class MapAsset {
     this.image = image;
     this.name = name;
     this.id = id;
+    this.subAssets = [];
+  }
+
+
+  getsubAssetIds() {
+    let ids = []
+    this.subAssets.forEach(subasset => ids.push(subasset.id))
+    return ids
+  }
+
+  addsubAsset(asset) {
+    this.subAssets.push(asset);
+  }
+
+  getsubAssets() {
+    return this.subAssets;
+  }
+}
+
+
+class BaseRecord {
+  constructor(asset) {
+    this.name = asset.name
+    this.quantity = asset.childQuantity
+    this.destroyed = asset.destroyed
+    this.deployed = asset.deployed
+    this.image = asset.image
+    // console.log(asset)
+    if (asset.destroyed > 0) {
+    }
   }
 }
 
 class Base extends MapAsset {
-  constructor(team, lat, lng, id, image, name) {
+  constructor(team, lat, lng, id, image, name, children) {
     super(team, lat, lng, image, name, id);
-    this.children_assets = [];
-    // asset_bank.forEach((asset) => this.add_child_asset(asset))
+    this.is_people = false
+    this.baseRecords = []
+    children.forEach((child) => {
+      /* {"assetParentId":494,"assetId":254,"parentId":866,"childQuantity":161
+      575,"deployed":0,"destroyed":0,"assetRecId":254,"name":"People","description":"Russia","attackRadius":"0","speed":"0","image":"Rus_people.png",
+      "transportationMode":"Land","type":"Population","class":"N\/A","country":6,"visibility":"Team"}
+      */
+      let record = new BaseRecord(child)
+      this.baseRecords.push(record)
+      if (child.type == 'Population') {
+        this.is_people = true
+      }
+    })
   }
 
-  add_child_asset(asset) {
-    this.children_assets.push(asset);
-    let children_assets_str = this.asset.getTooltip().getContent();
-    children_assets_str += `<div>${asset.image}</div>`;
-    this.asset.getTooltip().setContent(children_assets_str);
+  setTooltips(init = false) {
+    let subAssets = {};
+    this.subAssets.forEach((subasset) => {
+      if (subAssets.hasOwnProperty(subasset.name)) {
+        subAssets[subasset.name].push(subasset.id);
+      } else {
+        subAssets[subasset.name] = [subasset.id];
+      }
+    });
+    let assetString = ``;
+    let subassetString = ``
+    this.subAssets.forEach(subasset => { subassetString += `${subasset.id},` })
+    Object.entries(subAssets).forEach((subasset) => {
+      assetString += `<div style="border: 1px solid black; margin-bottom: 2px">${subasset[0]}: ${subasset[1].length}</div>`;
+    });
+
+    let recordsString = ``
+    this.baseRecords.forEach(record => {
+      recordsString += `<div style="border: 1px solid black; margin-bottom: 2px">${record.name}: ${record.quantity}/${record.destroyed}/${record.deployed}</div>`;
+    })
+
+    let tooltip = `
+      <div style="font-size: 16px">
+        <div style="font-weight: bold">${this.name}</div>
+        <div>Country: ${this.team}</div>
+        <div>Asset ID: ${this.id}</div>
+        <div>Subassets: ${assetString}</div>
+        <div>Records: ${recordsString}</div>
+
+      </div>`
+    if (init) {
+      this.asset.bindTooltip(tooltip)
+    }
+    else {
+      let tooltip = this.asset.getTooltip();
+      tooltip.setContent(htmlString);
+    }
   }
 
   paintOnMap() {
@@ -134,14 +215,8 @@ class Base extends MapAsset {
       rotationAngle: 0,
     });
     assetMarker.addTo(map);
-    assetMarker.bindTooltip(`
-    <div style="font-size: 16px">
-      <div style="font-weight: bold">${this.name}</div>
-      <div>Country: ${this.team}</div>
-      <div>Asset ID: ${this.id}</div>
-    </div>`);
-    // assetMarker.openTooltip()
     this.asset = assetMarker;
+    this.setTooltips(true)
   }
 }
 
@@ -165,7 +240,8 @@ class Container extends MapAsset {
     image,
     name,
     attackId,
-    subassets = null,
+    subassets,
+    targetId,
     data = null,
     paused_times = null
   ) {
@@ -182,6 +258,8 @@ class Container extends MapAsset {
     this.isReoriented = false;
     this.currentPathProgress = null;
     //saved
+    this.type = data?.type
+    this.targetId = targetId === 0 ? null : targetId
     this.speed = speed;
     (this.parentId = homebase), (this.mode = mode);
     this.status = status;
@@ -203,15 +281,6 @@ class Container extends MapAsset {
     this.current_lng = coordinates[1];
   }
 
-  //SUBASSET
-  addsubAsset(asset) {
-    this.subAssets.push(asset);
-  }
-
-  getsubAssets() {
-    return this.subAssets;
-  }
-
   setTooltips(set = false) {
     let subAssets = {};
     this.subAssets.forEach((subasset) => {
@@ -222,16 +291,20 @@ class Container extends MapAsset {
       }
     });
     let assetString = ``;
+    let subassetString = ``
+    this.subAssets.forEach(subasset => { subassetString += `${subasset.id},` })
     Object.entries(subAssets).forEach((subasset) => {
       assetString += `<div style="border: 1px solid black; margin-bottom: 2px">${subasset[0]}: ${subasset[1].length}</div>`;
     });
     // this.subAssets.forEach(subasset => { subAssets.push(subasset.id) })
     let dateObj = new Date(this.startTime);
+    // <div>Mode: ${this.mode}</div>             //Attack, Re-position
+    // <div>Status: ${this.status}</div>         //alive, exploded
+    // <div>Mvment Status: ${this.status}</div> //moving, arrived, destroyed
     let htmlString = `
     <div style="font-size: 16px">
       <div style="font-weight: bold">ASSET GROUP</div>
-      <div>Movement status: ${
-        this.movementStatus == "arrived" ? "Arrived" : "Moving"
+      <div>Movement status: ${this.movementStatus == "arrived" ? "Arrived" : "Moving"
       }</div>
       <div>Speed: ${this.speed}</div>
       <div>Homebase: ${this.parentId}</div>
@@ -240,6 +313,11 @@ class Container extends MapAsset {
       <div>Team: ${this.team}</div>
       <div>Attack ID: ${this.attackId}</div>
       <div>Subassets: ${assetString}</div>
+      <div>Subasset ids: ${subassetString}</div>
+      <div>Mode: ${this.mode}</div>           
+      <div>Status: ${this.status}</div>       
+      <div>Mvment Status: ${this.movementStatus}</div>
+      <div>TargetId: ${this.targetId}</div>
     </div>`;
     if (set) {
       this.asset.bindTooltip(htmlString);
@@ -268,6 +346,8 @@ class Container extends MapAsset {
       this.clear_RouteAssets();
       this.clear_persistentAssets();
     }
+    this.status = 'exploded'
+    this.movementStatus = 'destroyed'
     return exploded
   }
 
@@ -298,6 +378,11 @@ class Container extends MapAsset {
 
   //GFX
   paintOnMap() {
+    //TODO A
+    // if (!visibility_controller.asset_is_visible(this)) {
+    //   console.log('invisible')
+    //   return
+    // }
     // let iconUrl = `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}`
     let iconUrl = `./static/images/tri${this.team.toLowerCase()}.png`;
     let initCoords = this.getCurrentCoords();
@@ -509,8 +594,12 @@ class Container extends MapAsset {
   //REACHDEST
   //database_init is to disable collision detection during initial map draw
   completedAllWaypoints(database_init) {
+    // <div>Mode: ${this.mode}</div>             //Attack, Re-position
+    // <div>Status: ${this.status}</div>         //alive, exploded
+    // <div>Mvment Status: ${this.status}</div> //moving, arrived, destroyed
     this.currentPath = null;
     this.ismoving = false;
+    this.movementStatus = 'arrived'
     this.clear_RouteAssets();
     this.paths.length = 0;
     this.done = true;
@@ -519,11 +608,22 @@ class Container extends MapAsset {
       this.paused_times[i] = null;
     }
     //WRITE DATABASE
-    if (!database_init) {
+    if (this.mode == 'Re-position') {
+      console.log('push movement')
+      pushMovementDone(this.id)
+    }
+    else if (this.targetId) {
+      let target = stationary_asset_bank.get_asset(this.targetId)
+      console.log(`push collision: target: ${this.targetId} ${target}`)
+      collisionTransmit(this, target, '12345')
+      // pushCollision(this.attackId, this.getsubAssetIds(), [this.targetId])
+    }
+    else if (!database_init) {
+      console.log('collision detection')
       collision_detection(
         this,
         asset_bank,
-        socket,
+        collisionTransmit,
         pushCollision,
         pushMovementDone,
         eventLogger
@@ -594,29 +694,38 @@ function createAssetFromDatabase(asset, subassets = null) {
       ? parseInt(asset.attackId)
       : asset.attackId,
     subassets,
+    asset.targetId,
+    asset,
     true
   );
   return createdAsset;
 }
 
+//attack: radius
+//targetId -> assets
+//reposition: no event
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //DATA PULL
 async function databaseInit() {
   console.log("Database init");
-  // let assets = await pullAssets();
-  // console.log(assets)
-  // store('dbvalues', assets);
-  let assets = store.get("dbvalues");
+  let assets = await pullAssets();
+  console.log(assets)
+  store('dbvalues', assets);
+  // let assets = store.get("dbvalues");
   let missionAssets = {};
   assets.forEach((asset) => {
-    if (asset.attackId == "" || asset.speed == 0 || asset.speed == "0") {
+    if (asset.children.length > 0) {
+      console.log(asset.name)
       let base = createBase(
         asset.country,
         asset.startLat,
         asset.startLong,
-        asset.assetId,
+        asset.ingameId,
         asset.image,
-        asset.name
+        asset.name,
+        asset.children
       );
+      stationary_asset_bank.add_asset(base)
     } else {
       if (missionAssets.hasOwnProperty(asset.attackId)) {
         missionAssets[asset.attackId].push(asset);
@@ -625,15 +734,20 @@ async function databaseInit() {
       }
     }
   });
+  // stationary_asset_bank.assets.forEach(asset => console.log(asset.id))
   //create asset container
   Object.values(missionAssets).forEach((assets) => {
     let subassets = [];
     assets.forEach((asset) => {
       let newAsset = new SingleAsset(asset);
       subassets.push(newAsset);
+      console.log(asset.parentId)
+      //TODO add motherbase
+      // let motherbase = stationary_asset_bank.get_asset(asset.parentId)
+      // console.log(motherbase)
+      // motherbase.addsubAsset(newAsset)
     });
-    var newContainer = createAssetFromDatabase(assets[0], subassets);
-    console.log(newContainer);
+    createAssetFromDatabase(assets[0], subassets);
   });
   return;
 }
@@ -645,6 +759,7 @@ async function databaseInit() {
 // });
 
 document.addEventListener("DOMContentLoaded", async function () {
+  this_team = localStorage.getItem('country')
   function updateCoords(e) {
     let point = e.latlng.wrap();
     let ele = document.getElementById("coords-bottom");
@@ -663,8 +778,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   await databaseInit();
 });
 
-function createBase(team, lat, lng, id, image, name) {
-  let base = new Base(team, lat, lng, id, image, name);
+function createBase(team, lat, lng, id, image, name, children) {
+  let base = new Base(team, lat, lng, id, image, name, children);
   stationary_asset_bank.add_asset(base);
   base.paintOnMap();
   console.log("BASE CREATED");
@@ -685,6 +800,8 @@ function createAssets(
   name,
   attack_id,
   subassets,
+  targetId,
+  data,
   database_init = false,
   paused_times = null
 ) {
@@ -704,7 +821,8 @@ function createAssets(
     image,
     name,
     attack_id,
-    subassets
+    subassets,
+    targetId
     // paused_times,
     // data
   );
@@ -731,18 +849,26 @@ function createAssets(
   }
   container.init_movement(database_init);
   asset_bank.add_asset(container);
-  let path = container.currentPath;
-  var progress = path.getProgress();
-  var newPosition = midpoint(
-    path.start.lat,
-    path.start.lng,
-    path.end.lat,
-    path.end.lng,
-    progress
-  );
-  container.setPosition(newPosition);
+  if (container.done) {
+    container.setPosition([container.end]);
+
+  }
+  else {
+    let path = container.currentPath;
+    var progress = path.getProgress();
+    var newPosition = midpoint(
+      path.start.lat,
+      path.start.lng,
+      path.end.lat,
+      path.end.lng,
+      progress
+    );
+    container.setPosition(newPosition);
+
+  }
   container.paintOnMap();
   console.log("ASSET CREATED");
+  //TODO add to parent
   // stationary_asset_bank.get_asset(parentId).add_child_asset(container)
   return container;
 }
@@ -774,6 +900,10 @@ function updateAssets() {
       assetContainer.setPosition(newPosition);
       assetContainer.update_persistentAssets(newPosition);
       assetContainer.asset.setLatLng(newPosition);
+      if (assetContainer.movementStatus != 'moving') {
+        assetContainer.movementStatus = 'moving'
+        assetContainer.setTooltips()
+      }
       // let ele = document.querySelector(`[aria-describedby='leaflet-tooltip-${assetContainer.asset._leaflet_id}']`)
     }
   });
@@ -819,12 +949,12 @@ function createDummy() {
   let country = document.getElementById('debug-flag-change').value
   let name = document.getElementById('debug-asset-change').value
   let subasset1 = new SingleAsset({
-    ingameId: 229,
+    ingameId: asset_bank.get_dummy_id(),
     name: name,
     country: country,
   });
   let subasset2 = new SingleAsset({
-    ingameId: 230,
+    ingameId: asset_bank.get_dummy_id(),
     name: name,
     country: country,
   });
@@ -838,13 +968,13 @@ function createDummy() {
     null,
     null,
     179,
-    69420 + dummy_id_last,
+    69420 + asset_bank.get_dummy_id(),
     null,
     null,
     12345,
-    [subasset1, subasset2]
+    [subasset1, subasset2],
+    131
   );
-  dummy_id_last += 1;
 }
 
 function dummyExplosion() {
@@ -904,8 +1034,8 @@ document.addEventListener("keyup", (event) => {
 
 socket.on("approveMovement", async (data) => {
   //query assets using attack data
-  console.log(data);
   let new_data = await pullAttackIdAssets(data);
+  console.log(new_data);
   new_data = JSON.parse(new_data);
   let subassets = [];
   new_data.forEach((subdata) => {

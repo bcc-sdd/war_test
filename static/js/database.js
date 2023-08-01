@@ -39,7 +39,7 @@ async function pushData(url, data) {
     request.send(data);
     request.onload = function () {
         if (request.status != 200) { // analyze HTTP status of the response
-            alert(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
+            console.log(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
         } else { // show the result
             console.log(request.response)
         }

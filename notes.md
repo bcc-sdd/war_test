@@ -58,3 +58,12 @@ C -->|yes|D
     - Determine if moving or not
 - 
 ---
+**base**
+- [x] Determine if base is population or military base
+- [x] Add record for children
+- [ ] Tooltip
+- [ ] Visibility
+- [ ] Base attack
+- [ ] attack id
+
+---

@@ -1,16 +1,18 @@
 export class VisibilityClass {
     constructor(assets, bases, map) {
+        this.team = localStorage.getItem("saved_team") || 'CHINA'
         this.assets = assets;
         this.bases = bases;
         this.map = map
         this.show_radars = true;
         this.show_routes = true;
         this.show_danger_circle = true;
+        let team = localStorage.getItem('country')
         this.show_countries = {
-            'US': true,
-            'CHINA': true,
-            'RUSSIA': true,
-            'INDIA': true
+            'US': team == 'US',
+            'CHINA': team == 'CHINA',
+            'RUSSIA': team == 'RUSSIA',
+            'INDIA': team == 'INDIA'
         }
     }
 
@@ -28,6 +30,7 @@ export class VisibilityClass {
     }
 
     asset_is_visible(asset) {
+        console.log(asset.team)
         return this.show_countries[asset.team]
     }
 
