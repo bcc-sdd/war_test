@@ -292,7 +292,7 @@ class Container extends MapAsset {
         let position = data.pausePosition.split(',')
         //                    0: pathid       1,2: position             3: pausetime      4: resume time      5: progress
         this.paused_times = [parseInt(data.pausePathId), parseInt(position[0]), parseInt(position[1]), parseInt(data.pauseTime),
-                            parseInt(data.pauseResumeTime), Number(data.pauseProgressPercentage)]
+        parseInt(data.pauseResumeTime), Number(data.pauseProgressPercentage)]
       }
     }
 
@@ -527,7 +527,7 @@ class Container extends MapAsset {
     }
     this.ismoving = false;
     this.currentPath.paused_time = Date.now() / 1000;
-    console.log(this.paused_times[4], Date.now()/1000)
+    console.log(this.paused_times[4], Date.now() / 1000)
     let pathid = this.currentPath.id;
     let position = `${this.asset.getLatLng().lat},${this.asset.getLatLng().lng}`
     let paused_time = Date.now() / 1000;
@@ -741,8 +741,8 @@ function createAssetFromDatabase(asset, subassets = null) {
     let [lat, lng] = path.coordinates.split(",");
     paths.push(new L.LatLng(lat, lng));
   });
-  
-  if(asset.ingameId == 469) {
+
+  if (asset.ingameId == 469) {
     console.log(asset)
   }
   let createdAsset = createAssets(
@@ -1079,15 +1079,15 @@ document.addEventListener("keyup", (event) => {
     }
     case "KeyR": {
       asset_bank.get_assets().forEach(asset => {
-        asset.paused_times[3] && !asset.ismoving ? asset.continue_movement(): null
+        asset.paused_times[3] && !asset.ismoving ? asset.continue_movement() : null
       })
       break;
     }
     case "Space": {
       asset_bank.get_assets().forEach(asset => {
-        asset.ismoving ? asset.pause_movement(): null
+        asset.ismoving ? asset.pause_movement() : null
       })
-     
+
       break;
     }
   }
@@ -1119,17 +1119,23 @@ socket.on("approveMovement", async (data) => {
 
 
 socket.on("destroyedAsset", (data) => {
-  let asset_containers = asset_bank.get_assets();
-  let len1 = asset_containers.length;
-  for (let i = 0; i < len1; i++) {
-    var container = asset_containers[i];
-    var subassets = container.getsubAssets();
-    let len2 = subassets.length;
-    for (let j = 0; j < len2; j++) {
-      if (subassets[j].id == data) {
-        console.log(container, data);
-        container.explodesubAsset(data);
-        return;
+  let asset_container = single_asset_bank.get_asset(data)?.container
+  if (asset_container) {
+    asset_container.detachsubAsset(data)
+  }
+  else {
+    let asset_containers = asset_bank.get_assets();
+    let len1 = asset_containers.length;
+    for (let i = 0; i < len1; i++) {
+      var container = asset_containers[i];
+      var subassets = container.getsubAssets();
+      let len2 = subassets.length;
+      for (let j = 0; j < len2; j++) {
+        if (subassets[j].id == data) {
+          console.log(container, data);
+          container.explodesubAsset(data);
+          return;
+        }
       }
     }
   }
