@@ -59,7 +59,7 @@ export function collisionTransmit(
   //event 'collision'
   let inputData = {};
   let data = {};
-  data.aggressor = aggressor.getSquadron();
+  data.aggressor = [aggressor.getSquadron()];
   if (base_attack) {
     data.target = {
       country: targets.team,
@@ -69,6 +69,7 @@ export function collisionTransmit(
     }
     inputData.event = targets.is_people ? 'city_attack': "base_attack";
   } else {
+    console.log('targets', targets)
     data.target = [];
     targets.forEach((target) => data.target.push(target.getSquadron()));
     inputData.event = "collision";
@@ -76,8 +77,8 @@ export function collisionTransmit(
   inputData.data = data;
   inputData.code = code;
   console.log(inputData);
-  // socket.emit("mapEvent", inputData);
-  // console.log('transmitted collision to admin')
+  socket.emit("mapEvent", inputData);
+  console.log('transmitted collision to admin')
   // target: [
   //   {
   //     country: '',

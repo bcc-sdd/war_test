@@ -9,7 +9,7 @@ async function pullData(url) {
 
 
 
-function pullDataBody(url, data) {
+function pullDataBody(url, data,) {
     return new Promise(function (resolve, reject) {
         let xhr = new XMLHttpRequest();
         xhr.open("POST", `${siteUrl}${url}`);
@@ -33,7 +33,7 @@ function pullDataBody(url, data) {
     });
 }
 
-async function pushData(url, data) {
+async function pushData(url, data, callback=null, callback_data=null) {
     const request = new XMLHttpRequest();
     request.open("POST", `${siteUrl}${url}`);
     request.send(data);
@@ -41,6 +41,10 @@ async function pushData(url, data) {
         if (request.status != 200) { // analyze HTTP status of the response
             console.log(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
         } else { // show the result
+            if (callback) {
+                callback_data[2] = JSON.parse(request.response).collisionCode
+                callback? callback(...callback_data) : null;
+            }
             console.log(request.response)
         }
     };
@@ -52,7 +56,6 @@ async function pushData(url, data) {
 
 
 }
-
 //used when loading map assets
 export async function pullAssets() {
     let data = await pullData('Map_Controller/getAssignedAsset');
@@ -71,7 +74,7 @@ export async function pullAttackIdAssets(attackId) {
 }
 
 //triggered when collision is detected by collision function
-export async function pushCollision(attackId, aggressorIds, targetIds) {
+export async function pushCollision(attackId, aggressorIds, targetIds, callback, callback_data) {
     let aggressors = ''
     let targets = ''
     aggressorIds.forEach((id) => aggressors += `${id},`)
@@ -82,7 +85,7 @@ export async function pushCollision(attackId, aggressorIds, targetIds) {
     formData.append('aggressorId', aggressors.slice(0, -1))
     formData.append('targetId', targets.slice(0, -1))
     let endpoint = 'Facilitator_Controller/saveCollision'
-    pushData(endpoint, formData)
+    pushData(endpoint, formData, callback, callback_data)
 }
 
 //triggered by admin collision page
@@ -101,5 +104,27 @@ export function pushMovementDone(assetId) {
     const formData = new FormData();
     formData.append('ingameAssetId', assetId);
     let endpoint = 'Map_Controller/updatePosition'
+    pushData(endpoint, formData)
+}
+
+export function pushPauseMovement(pathId, position, progressPercentage, attackId, pauseTime, resumeTime) {
+    let endpoint = `Map_Controller/addPause`
+    const formData = new FormData()
+    formData.append('pathId', pathId)
+    formData.append('position', position)
+    formData.append('progressPercentage', progressPercentage)
+    formData.append('attackId', attackId)
+    formData.append('pauseTime', pauseTime)
+    formData.append('resumeTime', resumeTime)
+    pushData(endpoint, formData)
+}
+
+
+
+export function pushResumeMovement(attackId, reset=false) {
+    let endpoint = `Map_Controller/addResume`
+    const formData = new FormData()
+    formData.append('resumeTime', reset? null: Date.now() / 1000)
+    formData.append('attackId', attackId)
     pushData(endpoint, formData)
 }
