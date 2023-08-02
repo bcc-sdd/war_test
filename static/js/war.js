@@ -1,3 +1,13 @@
+/*
+///////////////////////////////////////////////////////////////
+ __ _ ___ _____ __    __ _    ___ _  _                        /
+/  |_) | (_  | (_    /  / \|\| | |_)/ \|                      /
+\__| \_|___)_|___)   \__\_/| | | | \\_/|__                    / 
+MAP CODE                          _____          _ ___ _  _   / 
+VERSION 6.23                     (_  | |V|| ||  |_| | / \|_)  /
+                                 __)_|_| ||_||__| | | \_/| \  /
+*/ ////////////////////////////////////////////////////////////
+
 // import paintBase from "./bases.js";
 import { socket, collisionTransmit } from "./socket_actual.js";
 import init_map from "./init_map.js";
@@ -9,7 +19,7 @@ import {
   pushCollision,
   pushMovementDone,
   pushPauseMovement,
-  pushResumeMovement
+  pushResumeMovement,
 } from "./database.js";
 import { VisibilityClass } from "./visibility_class.js";
 import {
@@ -72,6 +82,7 @@ class AssetBank {
 var asset_bank = new AssetBank();
 var stationary_asset_bank = new AssetBank();
 var single_asset_bank = new AssetBank();
+var drone_asset_bank = new AssetBank();
 
 let visibility_controller = new VisibilityClass(
   asset_bank,
@@ -144,7 +155,7 @@ class Base extends MapAsset {
     super(team, lat, lng, image, name, id);
     this.is_people = false;
     this.baseRecords = [];
-    children.forEach((child) => {
+    children?.forEach((child) => {
       /* {"assetParentId":494,"assetId":254,"parentId":866,"childQuantity":161
       575,"deployed":0,"destroyed":0,"assetRecId":254,"name":"People","description":"Russia","attackRadius":"0","speed":"0","image":"Rus_people.png",
       "transportationMode":"Land","type":"Population","class":"N\/A","country":6,"visibility":"Team"}
@@ -229,12 +240,16 @@ class Base extends MapAsset {
 }
 
 class SingleAsset {
-  constructor(data) {
+  constructor(data, parentSquadron) {
+    if (parentSquadron == null) {
+      console.log(`ERROR: no parent squadron: ${data.ingameId}`);
+    }
     this.id = data.ingameId;
     this.name = data.name;
     this.team = data.country;
     this.attackId = data.attackId;
-    this.container = null;
+    this.container = parentSquadron;
+    this.image = data.image;
   }
 }
 
@@ -250,13 +265,18 @@ class Container extends MapAsset {
     image,
     name,
     attackId,
-    subassets,
     targetId,
     data = null,
+    is_drone = false,
     paused_times = null
   ) {
     super(team, null, null, image, name, id);
-    this.attackId = attackId;
+    //default
+    this.subAssets = [];
+    //inputed
+    this.input_latlngs = [];
+    this.attack_radius = 500000;
+    this.radar_radius = 2000000;
     //computed
     this.currentPath = null;
     this.start = null;
@@ -266,36 +286,41 @@ class Container extends MapAsset {
     this.attackAsset = null;
     this.isReoriented = false;
     this.currentPathProgress = null;
-    //saved
-    this.targetId = targetId === 0 ? null : targetId;
-    this.speed = speed;
-    (this.parentId = homebase), (this.mode = mode);
-    this.status = status;
-    this.paths = [];
     this.totalFlightTime = 0;
     this.ismoving = false;
-    this.input_latlngs = [];
+    this.done = false;
+    this.isHidden = false;
+    //saved
+    this.is_drone = is_drone;
+    this.attackId = attackId;
+    this.targetId = targetId === 0 ? null : targetId;
+    this.speed = speed;
+    this.parentId = homebase;
+    this.mode = mode;
+    this.status = status;
+    this.paths = [];
     this.startTime = null;
     this.movementStatus = movementStatus;
-    this.done = false;
     this.paused_times = paused_times
       ? paused_times
       : [null, null, null, null, null, null];
-    this.subAssets = subassets ? subassets : [];
-    this.isHidden = false;
     //pause function
     if (data) {
       this.data = data;
       this.type = data?.type;
       if (data.pausePosition) {
-        console.log(data.pausePosition)
-        let position = data.pausePosition.split(',')
-        //                    0: pathid       1,2: position             3: pausetime      4: resume time      5: progress
-        this.paused_times = [parseInt(data.pausePathId), parseInt(position[0]), parseInt(position[1]), parseInt(data.pauseTime),
-                            parseInt(data.pauseResumeTime), Number(data.pauseProgressPercentage)]
+        console.log(data.pausePosition);
+        let position = data.pausePosition.split(",");
+        this.paused_times = [
+          parseInt(data.pausePathId), // 0:pathId
+          parseInt(position[0]), // 1,2position
+          parseInt(position[1]),
+          parseInt(data.pauseTime), // pauseTime
+          parseInt(data.pauseResumeTime), // resume
+          Number(data.pauseProgressPercentage), //progress
+        ];
       }
     }
-
   }
 
   getSquadron() {
@@ -343,7 +368,8 @@ class Container extends MapAsset {
     let htmlString = `
     <div style="font-size: 16px">
       <div style="font-weight: bold">ASSET GROUP</div>
-      <div>Movement status: ${this.movementStatus == "arrived" ? "Arrived" : "Moving"
+      <div>Movement status: ${
+        this.movementStatus == "arrived" ? "Arrived" : "Moving"
       }</div>
       <div>Speed: ${this.speed}</div>
       <div>Homebase: ${this.parentId}</div>
@@ -367,6 +393,10 @@ class Container extends MapAsset {
     }
   }
 
+  addsubAsset(subasset) {
+    this.subAssets.push(subasset);
+  }
+
   removesubAsset(subassetId) {
     let index = null;
     let len = this.subAssets.length;
@@ -378,14 +408,13 @@ class Container extends MapAsset {
         break;
       }
     }
-    this.subAssets.splice(index, 1);
     this.setTooltips(false);
     this.subAssets.splice(index, 1);
     return removedAsset;
   }
 
   detachsubAsset(subassetId) {
-    console.log('DETACHING')
+    console.log("DETACHING");
     this.removesubAsset(subassetId);
     if (this.subAssets.length == 0) {
       map.removeLayer(this.asset);
@@ -395,9 +424,10 @@ class Container extends MapAsset {
   }
 
   explodesubAsset(subassetId) {
-    console.log('EXPLODING')
+    console.log("EXPLODING");
     paintExplosion([this.current_lat, this.current_lng], map);
     let exploded = this.removesubAsset(subassetId);
+    console.log(this.subAssets);
     if (this.subAssets.length == 0) {
       map.removeLayer(this.asset);
       this.clear_RouteAssets();
@@ -424,19 +454,18 @@ class Container extends MapAsset {
   }
 
   getLatLng() {
-    return L.latLng(this.current_lat, this.current_lng)
+    return L.latLng(this.current_lat, this.current_lng);
   }
 
   //GFX
   paintOnMap() {
-    // if (!visibility_controller.asset_is_visible(this)) {
-    //   this.isHidden = true;
-    // }
+    if (!visibility_controller.asset_is_visible(this)) {
+      this.isHidden = true;
+    }
     // let iconUrl = `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}`
     let iconUrl = `./static/images/tri${this.team.toLowerCase()}.png`;
     let initCoords = this.getCurrentCoords();
-    console.log(this.id, initCoords, this.current_lat, this.paths, this.ismoving, this.start, this.end)
-    this.asset = paintAsset(initCoords, iconUrl, map);
+    this.asset = paintAsset(initCoords, iconUrl, map, this.isHidden);
     this.setTooltips(true);
     this.add_persistentAssets(initCoords);
     orientAsset(this);
@@ -463,18 +492,20 @@ class Container extends MapAsset {
     if (!visibility_controller.showRadars(this)) {
       return;
     }
-    let attackAsset = paintCircle(coords, map, "red", 500000);
+    let attackAsset = paintCircle(coords, map, "red", this.attack_radius);
     this.attackAsset = attackAsset;
+    if (this.is_drone) {
+      var radarAsset = L.circle(coords, {
+        color: "green",
+        // fillColor: "#212",
+        // fillOpacity: 0.5,
+        weight: 0.5,
+        radius: this.radar_radius,
+      });
+      radarAsset.addTo(map);
+      this.radarAsset = radarAsset;
+    }
     //TODO drone only
-    // var radarAsset = L.circle(coords, {
-    //   color: "green",
-    //   // fillColor: "#212",
-    //   // fillOpacity: 0.5,
-    //   weight: 0.5,
-    //   radius: 2000000,
-    // });
-    // radarAsset.addTo(map);
-    // this.radarAsset = radarAsset;
   }
 
   clear_persistentAssets() {
@@ -487,14 +518,14 @@ class Container extends MapAsset {
       return;
     }
     this.radarAsset ? this.radarAsset.setLatLng(coords) : null;
-    this.attackAsset.setLatLng(coords);
+    this.attackAsset ? this.attackAsset.setLatLng(coords) : null;
   }
 
   //LOGIC for radar
   can_detectContainer(container) {
     return (
-      this.asset.getLatLng().distanceTo(container.asset.getLatLng()) <=
-      this.radarAsset.getRadius() + container.attackAsset.getRadius()
+      this.getLatLng().distanceTo(container.getLatLng()) <=
+      this.radar_radius - container.attack_radius / 2
     );
   }
 
@@ -518,7 +549,6 @@ class Container extends MapAsset {
         }
       }
     }
-    //get next path
   }
 
   pause_movement() {
@@ -527,28 +557,39 @@ class Container extends MapAsset {
     }
     this.ismoving = false;
     this.currentPath.paused_time = Date.now() / 1000;
-    console.log(this.paused_times[4], Date.now()/1000)
+    console.log(this.paused_times[4], Date.now() / 1000);
     let pathid = this.currentPath.id;
-    let position = `${this.asset.getLatLng().lat},${this.asset.getLatLng().lng}`
+    let position = `${this.asset.getLatLng().lat},${
+      this.asset.getLatLng().lng
+    }`;
     let paused_time = Date.now() / 1000;
-    let resume_time = null;
     let progressPercentage = this.currentPath.getProgress();
 
     //pathid int
-    this.paused_times[0] = pathid
+    this.paused_times[0] = pathid;
     //posi
     this.paused_times[1] = this.asset.getLatLng().lat;
     this.paused_times[2] = this.asset.getLatLng().lng;
     //time pause
     this.paused_times[3] = paused_time;
     //time resume
-    this.paused_times[4] = resume_time;
+    this.paused_times[4] = null;
     //progress
     this.paused_times[5] = progressPercentage;
-    pushPauseMovement(this.currentPath.id, position, progressPercentage, this.attackId, paused_time, resume_time)
+    pushPauseMovement(
+      this.currentPath.id,
+      position,
+      progressPercentage,
+      this.attackId,
+      paused_time,
+      null
+    );
   }
 
   continue_movement() {
+    if (!this.paths.length) {
+      return;
+    }
     let path = this.currentPath;
     let progress = this.paused_times[5];
     let currentTime = Date.now() / 1000;
@@ -556,7 +597,7 @@ class Container extends MapAsset {
     path.startFlight(startTime);
     this.paused_times[4] = Date.now() / 1000;
     this.ismoving = true;
-    pushResumeMovement(this.attackId)
+    pushResumeMovement(this.attackId);
   }
 
   getProgress() {
@@ -584,7 +625,7 @@ class Container extends MapAsset {
   start_movement(database_init) {
     let startTime;
     if (this.paused_times[4] || this.paused_times[3]) {
-      console.log(this.paused_times)
+      console.log(this.paused_times);
       let path = this.paths[this.paused_times[0]];
       let progress = this.paused_times[5];
       let currentTime = Date.now() / 1000;
@@ -601,7 +642,7 @@ class Container extends MapAsset {
           break;
         }
         path.startFlight(startTime);
-        console.log(this.paused_times[3] && !this.paused_times[4])
+        console.log(this.paused_times[3] && !this.paused_times[4]);
         if (this.paused_times[3] && !this.paused_times[4]) {
           this.currentPath = path;
           this.currentPath.paused_time = this.paused_times[3];
@@ -667,17 +708,27 @@ class Container extends MapAsset {
     for (let i = 0; i <= len; i++) {
       this.paused_times[i] = null;
     }
+    this.setTooltips()
+    console.log("target reached");
     //WRITE DATABASE
     pushMovementDone(this.id);
-    if (this.mode == "Re-position") {
-      console.log("push movement");
-    } else if (this.targetId) {
-      console.log("target reached")
+    //base attack
+    if (this.targetId) {
       let target = stationary_asset_bank.get_asset(this.targetId);
-      let cbkdata = [this, target, null, true]
-      pushCollision(this.attackId, this.getsubAssetIds(), [this.targetId], collisionTransmit, cbkdata)
-      this.targetId = null
-    } else if (!database_init) {
+      collisionTransmit(this, target, 123245, true)
+      return
+      let cbkdata = [this, target, null, true];
+      pushCollision(
+        this.attackId,
+        this.getsubAssetIds(),
+        [this.targetId],
+        collisionTransmit,
+        cbkdata
+      );
+      this.targetId = null;
+    }
+    //collision attack 
+    else if (!database_init) {
       console.log("skirmish");
       collision_detection(
         this,
@@ -732,8 +783,8 @@ function createAssetFromDatabase(asset, subassets = null) {
     console.log("NO ATTACK ID", asset, subassets);
     return;
   }
-  if (asset.status == 'exploded') {
-    return
+  if (asset.status == "exploded") {
+    return;
   }
 
   let paths = [];
@@ -741,11 +792,11 @@ function createAssetFromDatabase(asset, subassets = null) {
     let [lat, lng] = path.coordinates.split(",");
     paths.push(new L.LatLng(lat, lng));
   });
-  
-  if(asset.ingameId == 469) {
-    console.log(asset)
+
+  if (asset.ingameId == 469) {
+    console.log(asset);
   }
-  let createdAsset = createAssets(
+  let createdContainer = createAssets(
     paths, //       input_latlngs,
     asset.country, //    team,
     asset.status, //       status,
@@ -760,7 +811,6 @@ function createAssetFromDatabase(asset, subassets = null) {
     asset.attackId,
     subassets,
     asset.targetId,
-    asset,
     true
   );
   return createdAsset;
@@ -772,9 +822,10 @@ function createAssetFromDatabase(asset, subassets = null) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //DATA PULL
 async function databaseInit() {
+  return;
   console.log("Database init");
   let assets = await pullAssets();
-  store('dbvalues', assets);
+  store("dbvalues", assets);
   // let assets = store.get("dbvalues");
   let missionAssets = {};
   assets.forEach((asset) => {
@@ -799,18 +850,15 @@ async function databaseInit() {
   });
   //create asset container
   Object.values(missionAssets).forEach((assets) => {
-    let subassets = [];
-    console.log('new container')
+    let container = createAssetFromDatabase(assets[0]);
     assets.forEach((asset) => {
-      let newAsset = new SingleAsset(asset);
+      let newAsset = new SingleAsset(asset, container);
+      container.addsubAsset(newAsset);
       single_asset_bank.add_asset(newAsset);
-      subassets.push(newAsset);
       //TODO add motherbase
       // let motherbase = stationary_asset_bank.get_asset(asset.parentId)
       // motherbase.addsubAsset(newAsset)
     });
-    let container = createAssetFromDatabase(assets[0], subassets);
-    subassets.forEach((subasset) => (subasset.container = container));
   });
   return;
 }
@@ -861,10 +909,10 @@ function createAssets(
   image,
   name,
   attack_id,
-  subassets,
   targetId,
   data,
   database_init = false,
+  is_drone = false,
   paused_times = null
 ) {
   if (lat_lngs_array.length == 1) {
@@ -883,9 +931,9 @@ function createAssets(
     image,
     name,
     attack_id,
-    subassets,
     targetId,
-    data
+    data,
+    is_drone
     // paused_times,
     // data
   );
@@ -926,6 +974,9 @@ function createAssets(
     );
     container.setPosition(newPosition);
   }
+  if (is_drone) {
+    drone_asset_bank.add_asset(container);
+  }
   container.paintOnMap();
   console.log("ASSET CREATED");
   //TODO add to parent
@@ -958,9 +1009,9 @@ function updateAssets() {
         progress
       );
       assetContainer.setPosition(newPosition);
-      assetContainer.asset.setLatLng(newPosition);
+      assetContainer.asset ? assetContainer.asset.setLatLng(newPosition) : null;
       assetContainer.update_persistentAssets(newPosition);
-      let is_moving = assetContainer.movementStatus != "moving"
+      let is_moving = assetContainer.movementStatus != "moving";
       if (is_moving) {
         assetContainer.movementStatus = "moving";
         assetContainer.setTooltips();
@@ -1009,35 +1060,54 @@ function skirmishAttack() {
 function createDummy() {
   let country = document.getElementById("debug-flag-change").value;
   let name = document.getElementById("debug-asset-change").value;
-  let subasset1 = new SingleAsset({
-    ingameId: asset_bank.get_dummy_id(),
-    name: name,
-    country: country,
-  });
-  let subasset2 = new SingleAsset({
-    ingameId: asset_bank.get_dummy_id(),
-    name: name,
-    country: country,
-  });
-  single_asset_bank.add_asset(subasset1);
-  single_asset_bank.add_asset(subasset2);
-
-  createAssets(
+  let base = createBase(
+    'USA',
+    0,
+    0,
+    131,
+    './static/images/20230718050057.png',
+    'DUMMY BASE',
+    null
+  );
+  let dummyContainer = createAssets(
     input_latlngs,
     country,
+    "alive",
+    "Attack",
+    "moving",
     null,
-    null,
-    null,
-    null,
-    null,
+    696969,
     179,
     69420 + asset_bank.get_dummy_id(),
     null,
-    null,
+    "DUMMY CONTAINER",
     12345,
-    [subasset1, subasset2],
-    409
+    131,
+    null,
+    null,
+    localStorage.getItem("country") == country
   );
+  console.log(dummyContainer);
+  let subasset1 = new SingleAsset(
+    {
+      ingameId: asset_bank.get_dummy_id(),
+      name: name,
+      country: country,
+    },
+    dummyContainer
+  );
+  let subasset2 = new SingleAsset(
+    {
+      ingameId: asset_bank.get_dummy_id(),
+      name: name,
+      country: country,
+    },
+    dummyContainer
+  );
+  single_asset_bank.add_asset(subasset1);
+  single_asset_bank.add_asset(subasset2);
+  dummyContainer.addsubAsset(subasset1);
+  dummyContainer.addsubAsset(subasset2);
 }
 
 function dummyExplosion() {
@@ -1078,22 +1148,28 @@ document.addEventListener("keyup", (event) => {
       break;
     }
     case "KeyR": {
-      asset_bank.get_assets().forEach(asset => {
-        asset.paused_times[3] && !asset.ismoving ? asset.continue_movement(): null
-      })
+      asset_bank.get_assets().forEach((asset) => {
+        asset.paused_times[3] && !asset.ismoving
+          ? asset.continue_movement()
+          : null;
+      });
       break;
     }
     case "Space": {
-      asset_bank.get_assets().forEach(asset => {
-        asset.ismoving ? asset.pause_movement(): null
-      })
-     
+      asset_bank.get_assets().forEach((asset) => {
+        asset.ismoving ? asset.pause_movement() : null;
+      });
+
       break;
     }
   }
 });
 
 //SOCKETS
+
+socket.on("continueMovement", (data) => {
+  single_asset_bank.get_asset(data[0]).container.continue_movement();
+});
 
 socket.on("approveMovement", async (data) => {
   //query assets using attack data
@@ -1102,13 +1178,12 @@ socket.on("approveMovement", async (data) => {
   let subassets = [];
   new_data.forEach((subdata) => {
     let new_subasset;
-    let old_subasset = single_asset_bank.get_asset(subdata.ingameId)
+    let old_subasset = single_asset_bank.get_asset(subdata.ingameId);
     // remove entities from previous attackId
     if (old_subasset) {
-      old_subasset.container?.detachsubAsset(subdata.ingameId)
-      new_subasset = old_subasset
-    }
-    else {
+      old_subasset.container.detachsubAsset(subdata.ingameId);
+      new_subasset = old_subasset;
+    } else {
       //create subassets
       new_subasset = new SingleAsset(subdata);
     }
@@ -1117,8 +1192,11 @@ socket.on("approveMovement", async (data) => {
   createAssetFromDatabase(new_data[0], subassets);
 });
 
-
 socket.on("destroyedAsset", (data) => {
+  let old_subasset = single_asset_bank.get_asset(data);
+  old_subasset.container.explodesubAsset(old_subasset);
+  return;
+
   let asset_containers = asset_bank.get_assets();
   let len1 = asset_containers.length;
   for (let i = 0; i < len1; i++) {
@@ -1134,3 +1212,27 @@ socket.on("destroyedAsset", (data) => {
     }
   }
 });
+
+function droneFunction() {
+  drone_asset_bank.get_assets().forEach((drone) => {
+    asset_bank.get_assets().forEach((asset) => {
+      if (drone.id == asset.id) {
+        return;
+      }
+      if (asset.isHidden && drone.can_detectContainer(asset) && !asset.asset) {
+        let pulsingIcon = L.icon.pulse({ iconSize: [5, 5], color: "red" });
+        let marker = L.marker([50, 15], { icon: pulsingIcon }).addTo(map);
+        asset.asset = marker;
+      } else if (
+        asset.isHidden &&
+        !drone.can_detectContainer(asset) &&
+        asset.asset
+      ) {
+        map.removeLayer(asset.asset);
+        asset.asset = null;
+      }
+    });
+  });
+}
+
+setInterval(droneFunction, 100);

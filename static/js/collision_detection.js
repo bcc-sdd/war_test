@@ -2,7 +2,7 @@ export function collision_detection(
     asset,
     asset_bank,
     socketFnc,
-    collisionFnc,
+    pushCollision,
     movementDoneFnc,
     eventLogger
 ) {
@@ -27,15 +27,10 @@ export function collision_detection(
         })
         //SEND DATA
         console.log(asset.attackId, DBaggressors, DBtargets)
-        socketFnc(asset, collided, '123456')
-        // collisionFnc(asset.attackId, DBaggressors, DBtargets)
+        // socketFnc(asset, collided, '123456')
+        let cbkdata = [asset, collided, null, false];
+        pushCollision(asset.attackId, DBaggressors, DBtargets, socketFnc, cbkdata)
         // eventLogger.add_event('collision', Date.now())
-    }
-    else {
-        asset.getsubAssets().forEach(subasset => {
-            movementDoneFnc(subasset.id)
-            // eventLogger.add_event('movement_done', Date.now(), container)
-        })
     }
 }
 
@@ -49,9 +44,8 @@ function collisionCheck(origin, container) {
     }
     console.log(origin.getLatLng(), container.getLatLng())
     let distance = origin.getLatLng().distanceTo(container.getLatLng())
-    let radius = origin.attackAsset.getRadius() + container.attackAsset.getRadius()
+    let radius = origin.attack_radius + container.attack_radius
     if (distance <= radius) {
-        origin.pause_movement();
         container.pause_movement();
         return true
     }

@@ -125,3 +125,18 @@ async def setDisplay(sid):
 @sio.event
 async def setAdmin(sid):
     global_data["general_sid"] = sid
+
+
+@sio.event
+async def mapEvent(sid, data):
+    await sio.emit(f'event_admin_{data["event"]}', data)
+
+@sio.event
+async def destroyedAsset(sid, data):
+    await sio.emit('destroyedAsset', data)
+
+    
+@sio.event
+async def continueMovement(sid, data):
+    print(data, 'continue movement')
+    await sio.emit('continueMovement', data)

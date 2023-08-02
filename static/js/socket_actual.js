@@ -1,6 +1,6 @@
 import { pullAttackIdAssets } from "./database.js";
-// const socket = io("http://localhost:3000/");
-let socket_url = "122.53.86.62:3000/";
+let socket_url = "http://localhost:8000"
+// let socket_url = "122.53.86.62:3000/";
 export const socket = io(socket_url);
 // const socket = io("http://localhost:8000/");
 
@@ -9,9 +9,6 @@ export const socket = io(socket_url);
 //   let myModal = new bootstrap.Modal(ele);
 //   myModal.show()
 // });
-
-// let test_data = pullAttackIdAssets("20230730111207507")
-// console.log(test_data)
 
 socket.on("connect", () => {
   console.log("Socket connected", socket_url, socket.id); // x8WIv7-mJelg7on_ALbx
@@ -79,48 +76,6 @@ export function collisionTransmit(
   console.log(inputData);
   socket.emit("mapEvent", inputData);
   console.log('transmitted collision to admin')
-  // target: [
-  //   {
-  //     country: '',
-  //     name: '',
-  //     attackId: '',
-  //     ids: [],
-  //     type: asset
-  //   },
-  //   {
-  //     country: '',
-  //     name: '',
-  //     id: '',
-  //     type: population/base,
-  //   },
-  // ]
-
-  
-//   if (true){
-//   aggressor.subAssets.forEach((subasset) => {
-//     let name = `${subasset.name}_${subasset.team}`;
-//     if (data.aggressor.hasOwnProperty(name)) {
-//       data.aggressor[name].push(subasset.id);
-//     } else {
-//       data.aggressor[name] = [subasset.id];
-//     }
-//   });
-//   if (base_attack) {
-
-//   } else {
-//     target.forEach((entity) => {
-//       entity.subAssets.forEach((subasset) => {
-//         let name = `${subasset.name}_${subasset.team}`;
-//         if (data.target.hasOwnProperty(name)) {
-//           data.target[name].push(subasset.id);
-//         } else {
-//           data.target[name] = [subasset.id];
-//         }
-//       });
-//     });
-//   }
-// }
-  
 }
 
 export function baseAttackTransmit(data, code) {
