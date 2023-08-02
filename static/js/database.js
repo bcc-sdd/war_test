@@ -34,6 +34,9 @@ function pullDataBody(url, data,) {
 }
 
 async function pushData(url, data, callback=null, callback_data=null) {
+    if (localStorage.getItem("admin") != "admin") {
+        return
+      }
     const request = new XMLHttpRequest();
     request.open("POST", `${siteUrl}${url}`);
     request.send(data);

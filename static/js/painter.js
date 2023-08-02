@@ -31,7 +31,7 @@ export function paintCircle(
   map,
   color = "green",
   radius = 5000,
-  fillOpacity = 0.3
+  fillOpacity = 0.2
 ) {
   var circleObject = L.circle(coords, {
     color: color,

@@ -9,7 +9,7 @@ export class VisibilityClass {
         this.show_danger_circle = true;
         let team = localStorage.getItem('country')
         this.show_countries = {
-            'US': team == 'US' || team == 'ALL',
+            'USA': team == 'USA' || team == 'ALL',
             'CHINA': team == 'CHINA' || team == 'ALL',
             'RUSSIA': team == 'RUSSIA' || team == 'ALL',
             'INDIA': team == 'INDIA' || team == 'ALL'
