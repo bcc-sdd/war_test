@@ -54,6 +54,11 @@ async def home(request: Request):
     return templates.TemplateResponse("objYellow.html", {"request": request})
 
 
+@app.get("/messaging", response_class=HTMLResponse)
+async def messaging(request: Request):
+    return templates.TemplateResponse("messaging.html", {"request": request})
+
+
 
 
 @app.get("/home", response_class=HTMLResponse)

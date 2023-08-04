@@ -27,7 +27,7 @@ function init_map_action() {
     }).setView([30, 0], 2);
     let mapUrlARCGIS = 'http://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
     let mapUrlOSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-    L.tileLayer(mapUrlARCGIS).addTo(
+    L.tileLayer(mapUrlOSM).addTo(
         map
     );
     let options = {

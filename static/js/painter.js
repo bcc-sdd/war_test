@@ -1,18 +1,67 @@
+var usaicon = L.icon({
+  iconUrl: "http://122.53.86.62:1945/assets/images/GameAssets/Mushroom Cloud USA.png",
+  iconSize: [30, 30], // size of the icon
+  iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+  // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
+});
 
+var chinaicon = L.icon({
+  iconUrl: "http://122.53.86.62:1945/assets/images/GameAssets/Mushroom Cloud CHINA.png",
+  iconSize: [30, 30], // size of the icon
+  iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+  // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
+});
 
-export function paintExplosion(coords, map) {
+var ruicon = L.icon({
+  iconUrl: "http://122.53.86.62:1945/assets/images/GameAssets/Mushroom Cloud RUSSIA.png",
+  iconSize: [30, 30], // size of the icon
+  iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+  // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
+});
+
+var inicon = L.icon({
+  iconUrl: "http://122.53.86.62:1945/assets/images/GameAssets/Mushroom Cloud INDIA.png",
+  iconSize: [30, 30], // size of the icon
+  iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+  // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
+});
+
+let mushicons = {
+  'USA': usaicon,
+  'CHINA': chinaicon,
+  'RUSSIA': ruicon,
+  'INDIA': inicon
+}
+
+export function getExplodedIcon(country) {
+  return mushicons[country]
+}
+
+export function paintBase(asset, country) {
+  asset.setIcon(mushicons[country])
+}
+
+export function paintExplosion(coords, map, country) {
   function clearExplosion(explosionAsset, map) {
     map.removeLayer(explosionAsset);
   }
-  let asset = paintAsset(coords, "./static/images/Mushroom Cloud.png", map);
-  setTimeout(clearExplosion, 5000, asset, map);
+  var icon = mushicons[country]
+  var assetMarker = L.marker(coords, {
+    icon: icon,
+    opacity: 1,
+    rotationAngle: 0,
+  });
+  assetMarker.addTo(map);
+  setTimeout(clearExplosion, 5000, assetMarker, map)
+  return assetMarker;
 }
 
-export function paintAsset(coords, iconUrl, map, hidden=false) {
+export function paintAsset(coords, iconUrl, map, hidden=false, iconvar=null) {
+  console.log(coords)
   var icon = L.icon({
     iconUrl: iconUrl,
-    iconSize: [30, 30], // size of the icon
-    iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+    iconSize: [18, 18], // size of the icon
+    iconAnchor: [9, 9], // point of the icon which will correspond to marker's location
     // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
   });
   var assetMarker = L.marker(coords, {

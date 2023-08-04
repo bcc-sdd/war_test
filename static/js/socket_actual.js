@@ -1,6 +1,6 @@
 import { pullAttackIdAssets } from "./database.js";
-let socket_url = "http://localhost:8000"
-// let socket_url = "122.53.86.62:3000/";
+// let socket_url = "http://localhost:8000"
+let socket_url = "122.53.86.62:3000/";
 export const socket = io(socket_url);
 // const socket = io("http://localhost:8000/");
 
@@ -49,27 +49,44 @@ export function collisionTransmit(
   aggressor,
   targets,
   code,
-  base_attack = false
+  event_type = null,
 ) {
-  //data
-  //int collisionCode
-  //event 'collision'
+  console.log('ATTEMPT SOCKET TRANSMIT: COLLISION')
+  console.log(targets)
   let inputData = {};
   let data = {};
   data.aggressor = [aggressor.getSquadron()];
-  if (base_attack) {
-    data.target = {
+  inputData.event = event_type;
+  if (event_type == 'base_attack') {
+    data.target = [{
       country: targets.team,
-      name: targets.name,
-      id: targets.id,
+      assets: {
+        [targets.name]: [targets.id]
+      },
+      is_base: true,
       type: targets.is_people ? 'population':'base'
-    }
-    inputData.event = targets.is_people ? 'city_attack': "base_attack";
-  } else {
-    console.log('targets', targets)
+    }]
+  } else if (event_type == 'missile_attack') {
+    data.target = []
+    targets.forEach( target => {
+      if (target.hasOwnProperty('is_base')) {
+        let val = {
+          country: target.team,
+          is_base: true,
+          assets: {
+            [target.name]: [target.id]
+          },
+        }
+        data.target.push(val)
+      }
+      else {
+        data.target.push(target.getSquadron())
+      }
+    })
+  }
+  else {
     data.target = [];
     targets.forEach((target) => data.target.push(target.getSquadron()));
-    inputData.event = "collision";
   }
   inputData.data = data;
   inputData.code = code;

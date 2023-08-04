@@ -7,17 +7,20 @@ export class VisibilityClass {
         this.show_radars = true;
         this.show_routes = true;
         this.show_danger_circle = true;
-        let team = localStorage.getItem('country')
+        let team = localStorage.getItem('country') || 'ALL'
+        // let team = 'ALL'
         this.show_countries = {
             'USA': team == 'USA' || team == 'ALL',
             'CHINA': team == 'CHINA' || team == 'ALL',
             'RUSSIA': team == 'RUSSIA' || team == 'ALL',
             'INDIA': team == 'INDIA' || team == 'ALL'
         }
+        console.log(this.show_countries)
     }
 
     
     asset_is_visible(asset) {
+        // return asset.team == 'CHINA'
         return this.show_countries[asset.team]
     }
 
@@ -102,6 +105,13 @@ export class VisibilityClass {
         this.show_radars = truthiness
         this.assets.get_assets().forEach((asset) => {
             this.toggle_RADARS(asset, truthiness)
+        })
+    }
+
+    toggleBases(event) {
+        var truthiness = event.srcElement.checked ? true : false;
+        this.bases.forEach(base => {
+            truthiness ? (base.asset ? null: base.paintOnMap()) : base.destroyAssets()
         })
     }
   

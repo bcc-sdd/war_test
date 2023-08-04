@@ -1,8 +1,8 @@
 var site_url = "122.53.86.62/";
 
-const socket_admin = io("http://localhost:8000/");
+// const socket_admin = io("http://localhost:8000/");
 
-// const socket_admin = io(`${site_url}:3000`);
+const socket_admin = io(`${site_url}:3000`);
 // const socket_admin = socket;
 
 var collisionCodes = {};
@@ -231,7 +231,7 @@ socket_admin.on("event_admin_collision", (incomingData) => {
   console.log("enter collision");
   let event_name = "Skirmish";
   let code = incomingData.code;
-  let [htmlString, finalize] = getHtml(incomingData.data, code);
+  let [htmlString, finalize] = getHtml(incomingData.data, code, false);
   drawRow(code, event_name, htmlString, finalize);
 });
 

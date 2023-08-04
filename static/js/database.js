@@ -45,7 +45,9 @@ async function pushData(url, data, callback=null, callback_data=null) {
             console.log(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
         } else { // show the result
             if (callback) {
-                callback_data[2] = JSON.parse(request.response).collisionCode
+                let collisionCode = JSON.parse(request.response).collisionCode
+                callback_data[2] = collisionCode
+                console.log(JSON.parse(request.response, callback_data)) 
                 callback? callback(...callback_data) : null;
             }
             console.log(request.response)
@@ -76,17 +78,19 @@ export async function pullAttackIdAssets(attackId) {
     return data;
 }
 
+
 //triggered when collision is detected by collision function
-export async function pushCollision(attackId, aggressorIds, targetIds, callback, callback_data) {
+export async function pushCollision(attackId, aggressorIds, targetIds, collisionEvent, callback, callback_data) {
     let aggressors = ''
     let targets = ''
     aggressorIds.forEach((id) => aggressors += `${id},`)
     targetIds.forEach((id) => targets += `${id},`)
-    // console.log(data)
+    console.log(collisionEvent)
     const formData = new FormData();
     formData.append('attackId', attackId)
     formData.append('aggressorId', aggressors.slice(0, -1))
     formData.append('targetId', targets.slice(0, -1))
+    formData.append('collisionEvent', collisionEvent)
     let endpoint = 'Facilitator_Controller/saveCollision'
     pushData(endpoint, formData, callback, callback_data)
 }
@@ -107,6 +111,16 @@ export function pushMovementDone(assetId) {
     const formData = new FormData();
     formData.append('ingameAssetId', assetId);
     let endpoint = 'Map_Controller/updatePosition'
+    pushData(endpoint, formData)
+}
+
+
+
+
+export function resetTargetId(assetId) {
+    let endpoint = 'Team_Controller/setNullId'
+    const formData = new FormData()
+    formData.append('assetId', assetId)
     pushData(endpoint, formData)
 }
 
@@ -131,3 +145,10 @@ export function pushResumeMovement(attackId, reset=false) {
     formData.append('attackId', attackId)
     pushData(endpoint, formData)
 }
+
+window.addEventListener("message", function (e) {
+    // [destination code goes here]
+    	
+const data = JSON.parse(e.data)
+console.log(data)
+})

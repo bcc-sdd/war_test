@@ -9,17 +9,17 @@ export function computePaths(latlngs0, latlngs1) {
     var new_latlng2 = L.latLng(new_lat, isWestward ? -180 : 180);
     if (isDrawAntimeridian(latlngs0, new_latlng1, latlngs1, new_latlng2)) {
         var firstpolyline = new L.Polyline([latlngs0, new_latlng1], {
-            color: "white",
+            color: "black",
             weight: routeWeight,
-            smoothFactor: 1,
+            // smoothFactor: 1,
             dashArray: "4 4",
             dashSpeed: 30
             //   noWrap: true,
         });
         var secondpolyline = new L.Polyline([latlngs1, new_latlng2], {
-            color: "white",
+            color: "black",
             weight: routeWeight,
-            smoothFactor: 1,
+            // smoothFactor: 1,
             dashArray: "4 4",
             dashSpeed: 30
             //   noWrap: true,
@@ -29,7 +29,7 @@ export function computePaths(latlngs0, latlngs1) {
         return retVal_paths;
     } else {
         var firstpolyline = new L.Polyline([latlngs0, latlngs1], {
-            color: "white",
+            color: "black",
             weight: routeWeight,
             smoothFactor: 1,
             dashArray: "4 4",

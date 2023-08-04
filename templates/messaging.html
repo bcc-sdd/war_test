@@ -1,0 +1,61 @@
+<html>
+
+<head>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .main {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <title></title>
+</head>
+
+<body>
+    <div class="row" class="main">
+        <div class="col-2" style="display: flex; flex-direction: row;">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+        <div class="col-10">
+            <div id="chatbox"></div>
+            <button type="button" class="btn">Base class</button>
+        </div>
+    </div>
+    <div>
+
+    </div>
+
+</body>
+<script src="/js/bootstrap.js"></script>
+<script src="{{ url_for('static', path='/js/socketio.js') }}"></script>
+<script src="{{ url_for('static', path='/js/bootstrap.js') }}"></script>
+<script>
+    var site_url = '122.53.86.62/'
+    // const socket_admin = io(`${site_url}:3000`);
+    const socket_admin = socket;
+    function message_send(message) {
+        let data = {
+            sender: '',
+            receiver: '',
+            timeSent: Date.now() / 1000,
+        }
+        socket_admin.emit('message_send', data)
+    }
+
+
+    socket_admin.on('message_receive', data => {
+        let message = data
+        let htmlString = `<div>${message}</div>`
+        //emit event to send
+        socket_admin.emit()
+    })
+
+</script>
+
+</html>

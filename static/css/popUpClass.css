@@ -17,9 +17,8 @@
 
 
 
-
 .navbar {
-  background-image: url('/static/images/camo.png');
+  background-image: url('http://122.53.86.62:1945/assets/images/camo.png');
   /* Replace with the path to your background image */
   background-repeat: repeat-x;
   /* This will make the image repeat horizontally */
