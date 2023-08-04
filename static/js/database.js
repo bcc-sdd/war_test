@@ -1,6 +1,7 @@
 var siteUrl = 'http://122.53.86.62:1945/'
 let testUrl = `http://122.53.86.62:1945/Map_Controller/getAssignedAsset`
 var thisTeam = null
+const devlog = true
 
 async function pullData(url) {
     const fetchPromise = await fetch(`${siteUrl}${url}`);
@@ -41,21 +42,22 @@ async function pushData(url, data, callback=null, callback_data=null) {
     request.open("POST", `${siteUrl}${url}`);
     request.send(data);
     request.onload = function () {
-        if (request.status != 200) { // analyze HTTP status of the response
-            console.log(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
+        if (request.status != 200 && devlog) {
+            console.log(`Error ${request.status}: ${request.statusText}`);
         } else { // show the result
-            if (callback) {
-                let collisionCode = JSON.parse(request.response).collisionCode
+            let collisionCode = JSON.parse(request.response).collisionCode
+            if (callback && callback_data != null) {
                 callback_data[2] = collisionCode
-                console.log(JSON.parse(request.response, callback_data)) 
-                callback? callback(...callback_data) : null;
+                callback(...callback_data);
             }
-            console.log(request.response)
+            else {
+                callback(collisionCode)
+            }
         }
+        return request.response
     };
-
     request.onerror = function () {
-        console.log("Request failed");
+        devlog ? console.log("Request failed") : null;
     };
 
 

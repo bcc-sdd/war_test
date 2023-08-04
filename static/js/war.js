@@ -8,10 +8,15 @@ VERSION 6.23                     (_  | |V|| ||  |_| | / \|_)  /
                                  __)_|_| ||_||__| | | \_/| \  /
 */ ////////////////////////////////////////////////////////////
 
-var settings = {
+const settings = {
   drawBases: true,
   load_db: true,
   load_store: true,
+  paint_population: false
+}
+
+const paint_settings = {
+  mapIconSize: 36
 }
 
 
@@ -49,11 +54,10 @@ class EventManager {
 ///////////////////////////////////////////////////////////////
 
 
-// import paintBase from "./bases.js";
 import { socket, collisionTransmit } from "./socket_actual.js";
 import init_map from "./init_map.js";
 import { computePaths } from "./drawFunctions.js";
-import { collision_detection } from "./collision_detection.js";
+import { collision_detection, base_collision_detection } from "./collision_detection.js";
 import {
   pullAssets,
   pullAttackIdAssets,
@@ -73,6 +77,7 @@ import {
   getExplodedIcon
 } from "./painter.js";
 import { EventLogger } from "./logger.js";
+import { endpoints } from "./endpoints.js";
 
 
 var map = null;
@@ -87,6 +92,18 @@ class AssetBank {
     this.asset_dict = {};
   }
 
+  remove_asset(assetId) {
+    //untested
+    let len = this.assets.length
+    for (let i=0; i<len; i++) {
+      let asset = this.assets[i]
+      if (asset.id == assetId) {
+        this.assets.splice(i, 1)
+      }
+     }
+    console.log('w -> Remove asset: null')
+  }
+
   get_dummy_id() {
     this.dummy_id_last += 1;
     return this.dummy_id_last - 1;
@@ -94,12 +111,18 @@ class AssetBank {
 
   add_asset(asset) {
     this.assets.push(asset);
-    this.asset_dict[asset.id] = asset;
   }
 
   get_asset(asset_id) {
-    return this.asset_dict?.[asset_id];
+    let len = this.assets.length
+    for (let i=0; i<len; i++) {
+      let asset = this.assets[i]
+      if (asset.id == asset_id) {
+        return asset
+      }
+    }
   }
+
   get_asset_by_attack_id(attackId) {
     let len = this.assets.length;
     for (let i = 0; i < len; i++) {
@@ -170,6 +193,7 @@ class MapAsset {
 
   
   getLatLng() {
+    // for distance computations
     return L.latLng(this.current_lat, this.current_lng);
   }
 
@@ -270,11 +294,34 @@ class Base extends MapAsset {
   }
 
   destroyAssets() {
+    // for vibilitiy
     map.removeLayer(this.asset)
     this.asset = null
   }
 
+  setVisibility(value) {
+    this.visibility = value
+    if (visibility == 'All') {
+      this.isHidden = false
+      if (!this.asset) {
+        this.paintOnMap()
+      }
+      else {
+        this.asset.addTo(map)
+      }
+    }
+    else {
+      this.isHidden = true
+      try {
+        map.removeLayer(this.asset)
+      } catch (error) {
+        console.log('Removing asset: no such asset.')
+      }
+    }
+  }
+
   paintOnMap() {
+    let size = paint_settings.mapIconSize
     var baseIcon;
     if (this.status == 'exploded') {
       var baseIcon = getExplodedIcon(this.team)
@@ -284,13 +331,8 @@ class Base extends MapAsset {
         iconUrl: this.image
           ? `http://122.53.86.62:1945/assets/images/GameAssets/${this.image}`
           : "http://122.53.86.62:1945/assets/images/GameAssets.png",
-          // shadowUrl: 'leaf-shadow.png',
-        // shadowSize: [50, 64], // size of the shadow
-        
-        iconSize: [36, 36], // size of the icon
-        iconAnchor: [18, 18], // point of the icon which will correspond to marker's location
-        // shadowAnchor: [4, 62],  // the same for the shadow
-        // popupAnchor: [-3, -76] // point from which the popup should open relative to the iconAnchor
+        iconSize: [size, size],
+        iconAnchor: [size/2, size/2],
       });
     }
     let initCoords = new L.LatLng(this.current_lat, this.current_lng);
@@ -308,7 +350,7 @@ class Base extends MapAsset {
   }
 
   explodeBase() {
-    this.exploded = true;
+    this.state = 'exploded';
     paintBase(this.asset, this.team)
     this.setTooltips(true)
     // map.removeLayer(this.asset)
@@ -382,12 +424,10 @@ class Container extends MapAsset {
     this.paused_times = paused_times
       ? paused_times
       : [null, null, null, null, null, null];
-    //pause function
-    if (data) {
+    if (data != null) {
       this.data = data;
-      this.type = data?.type;
-      //TODO 
-      this.is_bomb = data?.is_bomb
+      this.type = data.type;
+      this.is_bomb = data.type == 'Missile' || data.type == 'Nuclear bomb'
       if (data.pausePosition) {
         let position = data.pausePosition.split(",");
         this.paused_times = [
@@ -402,7 +442,73 @@ class Container extends MapAsset {
     }
   }
 
+  //ASSET MANAGEMENT
+  destroyAsset() {
+    asset_bank.remove_asset(this.id)
+    map.removeLayer(this.asset)
+    this.clear_RouteAssets();
+    this.clear_persistentAssets();
+    this.movementStatus = "destroyed";
+    this.asset = null;
+  }
 
+  //SUBASSET MANAGEMENT
+
+  addsubAsset(subasset) {
+    this.subAssets.push(subasset);
+  }
+
+  removesubAsset(subassetId) {
+    let index = null;
+    let len = this.subAssets.length;
+    let removedAsset = null;
+    for (let i = 0; i < len; i++) {
+      if (this.subAssets[i].id == subassetId.id) {
+        removedAsset = this.subAssets[i];
+        index = i;
+        break;
+      }
+    }
+    this.subAssets.splice(index, 1);
+    this.setTooltips(false);
+    return removedAsset;
+  }
+
+  detachsubAsset(subassetId) {
+    this.removesubAsset(subassetId);
+    if (this.subAssets.length == 0) {
+      this.destroyAsset()
+    }
+  }
+
+
+  explodesubAsset(subassetId) {
+    let latObject = [this.current_lat, this.current_lng]
+    paintExplosion(latObject, map, this.team);
+    let exploded = this.removesubAsset(subassetId);
+    if (this.subAssets.length == 0) {
+      this.destroyAsset()
+      map.removeLayer(this.asset);
+      this.status = "exploded";
+    }
+    return exploded;
+  }
+
+
+  
+  //GETTERS
+
+  getCurrentCoords() {
+    if (this.paused_times[3] && !this.paused_times[4]) {
+      return [this.paused_times[1], this.paused_times[2]];
+    }
+    if (!this.ismoving) {
+      return this.end;
+    }
+    return [this.current_lat, this.current_lng];
+  }
+  
+  
   getSquadron() {
     let squadron = {};
     squadron.attackId = this.attackId;
@@ -417,7 +523,15 @@ class Container extends MapAsset {
     });
     return squadron;
   }
+  
+  //SETTERS
 
+  addPath(path) {
+    path.id = this.paths.length;
+    this.paths.push(path);
+  }
+
+  
   setPosition(coordinates) {
     this.current_lat = coordinates[0];
     this.current_lng = coordinates[1];
@@ -442,7 +556,7 @@ class Container extends MapAsset {
     });
     // this.subAssets.forEach(subasset => { subAssets.push(subasset.id) })
     let dateObj = new Date(this.startTime);
-    // <div>Mode: ${this.mode}</div>             //Attack, Re-position
+    // <div>Mode: ${this.mode}</div>             //Attack, Re-Position
     // <div>Status: ${this.status}</div>         //alive, exploded
     // <div>Mvment Status: ${this.status}</div> //moving, arrived, destroyed
     let htmlString = `
@@ -474,89 +588,12 @@ class Container extends MapAsset {
     }
   }
 
-  addsubAsset(subasset) {
-    this.subAssets.push(subasset);
-  }
-
-  removesubAsset(subassetId) {
-    let index = null;
-    let len = this.subAssets.length;
-    let removedAsset = null;
-    for (let i = 0; i < len; i++) {
-      if (this.subAssets[i].id == subassetId.id) {
-        removedAsset = this.subAssets[i];
-        index = i;
-        break;
-      }
-    }
-    
-    this.subAssets.splice(index, 1);
-    this.setTooltips(false);
-    return removedAsset;
-  }
-
-  detachsubAsset(subassetId) {
-    this.removesubAsset(subassetId);
-    if (this.subAssets.length == 0) {
-      map.removeLayer(this.asset);
-      this.clear_RouteAssets();
-      this.clear_persistentAssets();
-    }
-  }
 
 
-  explodesubAsset(subassetId) {
-    let latObject = [this.current_lat, this.current_lng]
-    paintExplosion(latObject, map, this.team);
-    let exploded = this.removesubAsset(subassetId);
-    if (this.subAssets.length == 0) {
-      map.removeLayer(this.asset);
-      this.clear_RouteAssets();
-      this.clear_persistentAssets();
-      this.status = "exploded";
-      this.movementStatus = "destroyed";
-    }
-    return exploded;
-  }
-
-  addPath(path) {
-    path.id = this.paths.length;
-    this.paths.push(path);
-  }
-
-  getCurrentCoords() {
-    if (this.paused_times[3] && !this.paused_times[4]) {
-      return [this.paused_times[1], this.paused_times[2]];
-    }
-    if (!this.ismoving) {
-      return this.end;
-    }
-    return [this.current_lat, this.current_lng];
-  }
-  
-  
   //GFX
   
-  setVisibility(value) {
-    this.visibility = value
-    if (visibility == 'All') {
-      this.isHidden = false
-      if (!this.asset) {
-        this.paintOnMap()
-      }
-      else {
-        this.asset.addTo(map)
-      }
-    }
-    else {
-      this.isHidden = true
-      try {
-        map.removeLayer(this.asset)
-      } catch (error) {
-        console.log('error')
-      }
-    }
-  }
+  
+
   paintOnMap() {
     if (!visibility_controller.asset_is_visible(this) ) {
       if (!(this.visibility == 'All')) {
@@ -622,13 +659,6 @@ class Container extends MapAsset {
     this.attackAsset ? this.attackAsset.setLatLng(coords) : null;
   }
 
-  //LOGIC for radar
-  can_detectContainer(container) {
-    return (
-      this.getLatLng().distanceTo(container.getLatLng()) <=
-      this.radar_radius - container.attack_radius / 2
-    );
-  }
 
   //MOVEMENT
   end_movement() {
@@ -814,24 +844,14 @@ class Container extends MapAsset {
     //base attack
     if (this.is_bomb) {
         this.status = 'exploded'
-        this.exploded = true;
-        paintBase(this.asset, this.team)
-        this.asset.setRotationAngle(0)
-        this.setTooltips(true)
-        map.removeLayer(this.asset)
-        this.clear_persistentAssets()
-      let event_name = 'missile_attack'
-      let target = stationary_asset_bank.get_asset(this.targetId)
-      let cbkdata = [this, target, null, event_name];
-      pushCollision(
-        this.attackId,
-        this.getsubAssetIds(),
-        [this.targetId],
-        event_name,
-        collisionTransmit,
-        cbkdata
-      );
-      this.targetId = null;
+        paintExplosion(this.getCurrentCoords(), map, this.team)
+        // paintBase(this.asset, this.team)
+        // this.asset.setRotationAngle(0)
+        // this.setTooltips(true)
+        this.destroyAsset()
+      //TODO
+      this.targetId = null
+      resetTargetId(this.id)
     }
     else if (this.targetId) {
       let event_name = 'base_attack'
@@ -853,7 +873,6 @@ class Container extends MapAsset {
       collision_detection(
         this,
         asset_bank,
-        stationary_asset_bank,
         collisionTransmit,
         pushCollision,
         pushMovementDone,
@@ -873,7 +892,6 @@ class Container extends MapAsset {
       let start = path.start;
       let end = path.end;
       //distance is in meters
-      //TODO paths
       var distance = start.distanceTo(end) / 1000;
       path.distance = distance;
       //TODO hardcoded speed
@@ -884,21 +902,19 @@ class Container extends MapAsset {
     // get total flight from start to end
     this.totalFlightTime = totalFlightTime;
     this.start_movement(database_init);
-    if (this.ismoving) {
+    if (this.ismoving || this.paused_times[1]) {
       this.add_routeAssets();
-      socket.emit(
-        "commitAction",
-        `Plane X is moving to coordinates {${this.end.lat.toFixed(
-          2
-        )}, ${this.end.lng.toFixed(2)}}.`
-      );
-    } else if (this.paused_times[1]) {
-      this.add_routeAssets();
+      // socket.emit(
+      //   "commitAction",
+      //   `Plane X is moving to coordinates {${this.end.lat.toFixed(
+      //     2
+      //   )}, ${this.end.lng.toFixed(2)}}.`
+      // );
     }
   }
 }
 
-function createAssetFromDatabase(asset, subassets = null) {
+function createAssetFromDatabase(asset) {
   if (asset.status == "exploded") {
     return;
   }
@@ -959,6 +975,7 @@ async function databaseInit() {
       );
       stationary_asset_bank.add_asset(base);
     } else {
+      //GROUP BY ATTACK ID
       if (missionAssets.hasOwnProperty(asset.attackId)) {
         missionAssets[asset.attackId].push(asset);
       } else {
@@ -1066,7 +1083,6 @@ function createAssets(
   data,
   database_init = false,
   is_drone = false,
-  paused_times = null
 ) {
   if (lat_lngs_array.length == 1) {
     console.log("Insufficient amount of waypoints. Supplied: 1");
@@ -1091,8 +1107,6 @@ function createAssets(
     targetId,
     data,
     is_drone
-    // paused_times,
-    // data
   );
   container.startTime = startTime;
   container.input_latlngs = lat_lngs_array;
@@ -1171,7 +1185,6 @@ function updateAssets() {
         assetContainer.movementStatus = "moving";
         assetContainer.setTooltips();
       }
-      // let ele = document.querySelector(`[aria-describedby='leaflet-tooltip-${assetContainer.asset._leaflet_id}']`)
     }
   });
 }
@@ -1183,34 +1196,6 @@ function midpoint(lat1, long1, lat2, long2, per) {
   return [lat1 + (lat2 - lat1) * per, long1 + (long2 - long1) * per];
 }
 
-function targetedAttack() {
-  socket.emit("mapEvent", {
-    event: "targeted_attack",
-    data: {
-      agg_team: "US",
-      aggressor: [{ name: "Raptor", ids: [1, 2, 3, 4, 5] }],
-      target: [{ name: "Beijing", ids: [12] }],
-      targ_team: "China",
-    },
-  });
-}
-
-function skirmishAttack() {
-  let attackId = 1;
-  let aggressors = [1, 2, 3, 4, 5];
-  let targets = [6, 7, 8, 9, 10];
-  pushCollision(attackId, aggressors, targets);
-  socket.emit("mapEvent", {
-    event: "collision",
-    code: "123123123",
-    data: {
-      agg_team: "India",
-      aggressor: { Raptor: [1, 2, 3, 4, 5] },
-      target: { Plane: [12, 1, 2, 3, 5], Tank: [12, 1, 2, 3, 5] },
-      targ_team: "Russia",
-    },
-  });
-}
 
 function createDummy() {
   let country = document.getElementById("debug-flag-change").value;
@@ -1308,9 +1293,14 @@ socket.on("changeVisibility", data => {
   let visibility = data.visibility
   let attackId = data.attackId
   let inGameId = data.inGameId
-  let asset = asset_bank.get_asset_by_attack_id(attackId)
-  asset.setVisibility(visibility)
-  //TODO HIDE IN GAME ID
+  if (attackId) {
+    let asset = asset_bank.get_asset_by_attack_id(attackId)
+    asset.setVisibility(visibility)
+  }
+  if (inGameId) {
+    let asset = stationary_asset_bank.get_asset(inGameId) 
+    asset.setVisibility(visibility)
+  }
 })
 
 
@@ -1399,19 +1389,29 @@ socket.on("destroyedAsset", (data) => {
 
 });
 
+
+  //LOGIC for radar
+function can_detectContainer(origin, container) {
+    return (
+      origin.getLatLng().distanceTo(container.getLatLng()) <=
+      origin.radar_radius - container.attack_radius / 2
+    );
+  }
+
+//TODO
 function droneFunction() {
   drone_asset_bank.get_assets().forEach((drone) => {
     asset_bank.get_assets().forEach((asset) => {
       if (drone.id == asset.id) {
         return;
       }
-      if (asset.isHidden && drone.can_detectContainer(asset) && !asset.asset) {
+      if (asset.isHidden && can_detectContainer(drone, asset) && !asset.asset) {
         let pulsingIcon = L.icon.pulse({ iconSize: [5, 5], color: "red" });
         let marker = L.marker([50, 15], { icon: pulsingIcon }).addTo(map);
         asset.asset = marker;
       } else if (
         asset.isHidden &&
-        !drone.can_detectContainer(asset) &&
+        !can_detectContainer(drone, asset) &&
         asset.asset
       ) {
         map.removeLayer(asset.asset);

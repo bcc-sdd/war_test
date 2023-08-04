@@ -35,20 +35,16 @@ socket_admin.on("connect", () => {
 });
 
 async function pushData(url, data) {
-  return;
   const request = new XMLHttpRequest();
   request.open("POST", `http://122.53.86.62:1945/${url}`);
   request.send(data);
   request.onload = function () {
     if (request.status != 200) {
-      // analyze HTTP status of the response
-      console.log(`Error ${request.status}: ${request.statusText}`); // e.g. 404: Not Found
+      console.log(request.status, request.response);
     } else {
-      // show the result
       console.log(request.response);
     }
   };
-
   request.onerror = function () {
     alert("Request failed");
   };
@@ -191,8 +187,8 @@ async function eventCollision_admin(event, dec) {
         socket_admin.emit("destroyedAsset", id);
         pushData(endpoint, formData);
       });
-      console.log(entities.slice(dead), entities, dead)
-      socket_admin.emit("continueMovement", entities.slice(dead))
+      console.log(entities.slice(dead), entities, dead);
+      socket_admin.emit("continueMovement", entities.slice(dead));
     } else {
       entities.slice(0, dead).forEach((id) => {
         let formData = new FormData();
@@ -202,7 +198,7 @@ async function eventCollision_admin(event, dec) {
         console.log(`attempting to write targ exploded id:${id}`);
         socket_admin.emit("destroyedAsset", id);
       });
-      socket_admin.emit("continueMovement", entities.slice(dead))
+      socket_admin.emit("continueMovement", entities.slice(dead));
     }
   });
   event.srcElement.parentElement.parentElement.remove();

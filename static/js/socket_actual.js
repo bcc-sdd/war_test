@@ -64,7 +64,6 @@ export function collisionTransmit(
         [targets.name]: [targets.id]
       },
       is_base: true,
-      type: targets.is_people ? 'population':'base'
     }]
   } else if (event_type == 'missile_attack') {
     data.target = []
@@ -92,17 +91,5 @@ export function collisionTransmit(
   inputData.code = code;
   console.log(inputData);
   socket.emit("mapEvent", inputData);
-  console.log('transmitted collision to admin')
 }
 
-export function baseAttackTransmit(data, code) {
-  let inputData = {};
-  inputData.event = "base_attack";
-  socket.emit("mapEvent", inputData);
-}
-
-export function cityAttackTransmit(data, code) {
-  let inputData = {};
-  inputData.event = "city_attack";
-  socket.emit("mapEvent", inputData);
-}
